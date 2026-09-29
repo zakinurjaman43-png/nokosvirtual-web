@@ -2,38 +2,14 @@
 
 import { useState } from "react";
 
-const deposits = [
-  {
-    id: "#D36EFE35",
-    amount: 10000,
-    fee: 200,
-    method: "QRIS",
-    status: "CREDITED",
-    date: "Sep 27 07:47 PM",
-  },
-  {
-    id: "#EB66B513",
-    amount: 10000,
-    fee: 200,
-    method: "QRIS",
-    status: "CREDITED",
-    date: "Sep 20 08:11 AM",
-  },
-  {
-    id: "#E0FC2876",
-    amount: 10000,
-    fee: 200,
-    method: "QRIS",
-    status: "CREDITED",
-    date: "Aug 18 04:23 AM",
-  },
-];
-
 export default function DepositPage() {
-  const [method, setMethod] = useState("QRIS");
   const [amount, setAmount] = useState("");
 
-  const quickAmounts = [10000, 25000, 50000, 100000, 500000];
+  const quickAmounts = [15000, 25000, 50000, 100000, 250000, 500000];
+
+  function formatRupiah(value) {
+    return Number(value || 0).toLocaleString("id-ID");
+  }
 
   return (
     <main
@@ -44,8 +20,7 @@ export default function DepositPage() {
         padding: "24px",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "auto" }}>
-
+      <div style={{ maxWidth: "900px", margin: "auto" }}>
         <nav
           style={{
             display: "flex",
@@ -93,208 +68,142 @@ export default function DepositPage() {
         <section
           style={{
             marginTop: "30px",
-            padding: "24px",
             background: "#111827",
             border: "1px solid #1f2937",
-            borderRadius: "16px",
-            maxWidth: "700px",
+            borderRadius: "18px",
+            padding: "24px",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>
-            New Deposit
-          </h2>
-
-          <p style={{ color: "#94a3b8", fontSize: "14px" }}>
-            Payment Method
-          </p>
-
-          <button
-            onClick={() => setMethod("QRIS")}
+          <label
             style={{
-              width: "100%",
-              padding: "15px",
-              borderRadius: "10px",
-              border:
-                method === "QRIS"
-                  ? "1px solid #5eead4"
-                  : "1px solid #374151",
-              background:
-                method === "QRIS" ? "#0f292b" : "#070b14",
-              color: "#fff",
-              textAlign: "left",
-              cursor: "pointer",
+              display: "block",
+              marginBottom: "10px",
+              fontWeight: 700,
             }}
           >
-            💳 <strong>QRIS</strong>
-            <br />
-            <span style={{ color: "#94a3b8", fontSize: "13px" }}>
-              Pembayaran otomatis melalui QRIS
-            </span>
-          </button>
-
-          <p
-            style={{
-              color: "#94a3b8",
-              fontSize: "14px",
-              marginTop: "24px",
-            }}
-          >
-            Amount (IDR)
-          </p>
-
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter deposit amount"
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "14px",
-              borderRadius: "10px",
-              border: "1px solid #374151",
-              background: "#070b14",
-              color: "#fff",
-              fontSize: "15px",
-            }}
-          />
+            Nominal Deposit
+          </label>
 
           <div
             style={{
               display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-              marginTop: "12px",
+              alignItems: "center",
+              background: "#070b14",
+              border: "1px solid #374151",
+              borderRadius: "12px",
+              padding: "0 14px",
+            }}
+          >
+            <span style={{ color: "#94a3b8" }}>Rp</span>
+
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="Masukkan nominal"
+              style={{
+                width: "100%",
+                padding: "15px 10px",
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                color: "#fff",
+                fontSize: "16px",
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(120px, 1fr))",
+              gap: "10px",
+              marginTop: "15px",
             }}
           >
             {quickAmounts.map((value) => (
               <button
                 key={value}
-                onClick={() => setAmount(value)}
+                onClick={() => setAmount(String(value))}
                 style={{
-                  padding: "9px 13px",
-                  borderRadius: "8px",
+                  padding: "11px",
+                  borderRadius: "10px",
                   border: "1px solid #374151",
                   background: "#070b14",
-                  color: "#cbd5e1",
+                  color: "#fff",
                   cursor: "pointer",
                 }}
               >
-                Rp {value.toLocaleString("id-ID")}
+                Rp {formatRupiah(value)}
               </button>
             ))}
           </div>
 
-          <button
-            onClick={() =>
-              alert(
-                "Fitur pembayaran akan dihubungkan ke Midtrans."
-              )
-            }
+          <div
             style={{
-              width: "100%",
               marginTop: "22px",
-              padding: "14px",
-              border: "none",
-              borderRadius: "10px",
-              background: "#5eead4",
-              color: "#06111a",
-              fontWeight: 800,
-              cursor: "pointer",
+              padding: "15px",
+              borderRadius: "12px",
+              background: "#0b1220",
+              color: "#94a3b8",
             }}
           >
-            Create Deposit
+            💳 Pembayaran: <strong style={{ color: "#fff" }}>
+              QRIS
+            </strong>
+            <br />
+            <small>
+              Minimum deposit Rp15.000
+            </small>
+          </div>
+
+          <button
+            disabled={!amount || Number(amount) < 15000}
+            style={{
+              width: "100%",
+              marginTop: "20px",
+              padding: "14px",
+              border: "none",
+              borderRadius: "12px",
+              background:
+                amount && Number(amount) >= 15000
+                  ? "#5eead4"
+                  : "#374151",
+              color:
+                amount && Number(amount) >= 15000
+                  ? "#06111a"
+                  : "#94a3b8",
+              fontWeight: 800,
+              fontSize: "16px",
+              cursor:
+                amount && Number(amount) >= 15000
+                  ? "pointer"
+                  : "not-allowed",
+            }}
+          >
+            Buat Pembayaran QRIS
           </button>
         </section>
 
-        <section style={{ marginTop: "40px" }}>
-          <h2>Deposit History</h2>
+        <section
+          style={{
+            marginTop: "25px",
+            padding: "20px",
+            background: "#111827",
+            border: "1px solid #1f2937",
+            borderRadius: "18px",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>
+            Riwayat Deposit
+          </h2>
 
-          <div
-            style={{
-              marginTop: "16px",
-              background: "#111827",
-              border: "1px solid #1f2937",
-              borderRadius: "16px",
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  minWidth: "750px",
-                  borderCollapse: "collapse",
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      borderBottom: "1px solid #1f2937",
-                      color: "#64748b",
-                      textAlign: "left",
-                    }}
-                  >
-                    <th style={th}>ID</th>
-                    <th style={th}>AMOUNT</th>
-                    <th style={th}>FEE</th>
-                    <th style={th}>METHOD</th>
-                    <th style={th}>STATUS</th>
-                    <th style={th}>DATE</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {deposits.map((deposit) => (
-                    <tr
-                      key={deposit.id}
-                      style={{
-                        borderBottom: "1px solid #1f2937",
-                      }}
-                    >
-                      <td style={td}>{deposit.id}</td>
-                      <td style={td}>
-                        Rp {deposit.amount.toLocaleString("id-ID")}
-                      </td>
-                      <td style={td}>
-                        Rp {deposit.fee.toLocaleString("id-ID")}
-                      </td>
-                      <td style={td}>{deposit.method}</td>
-                      <td style={td}>
-                        <span
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: "999px",
-                            background: "#14532d",
-                            color: "#86efac",
-                            fontSize: "12px",
-                            fontWeight: 800,
-                          }}
-                        >
-                          {deposit.status}
-                        </span>
-                      </td>
-                      <td style={td}>{deposit.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <p style={{ color: "#94a3b8" }}>
+            Belum ada transaksi deposit.
+          </p>
         </section>
       </div>
     </main>
   );
 }
-
-const th = {
-  padding: "16px",
-  fontSize: "12px",
-  fontWeight: 800,
-};
-
-const td = {
-  padding: "17px 16px",
-  color: "#cbd5e1",
-  fontSize: "14px",
-};
