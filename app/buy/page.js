@@ -4,13 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function BuyPage() {
   const [products, setProducts] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [services, setServices] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [service, setService] = useState("all");
-  const [serviceSearch, setServiceSearch] = useState("");
   const [country, setCountry] = useState("all");
   const [operator, setOperator] = useState("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function loadCatalog() {
@@ -28,8 +31,10 @@ export default function BuyPage() {
         }
 
         setProducts(result.data || []);
+        setCountries(result.countries || []);
+        setServices(result.services || []);
       } catch (err) {
-        setError("Katalog SMSCode gagal dimuat.");
+        setError("Katalog gagal dimuat.");
       } finally {
         setLoading(false);
       }
@@ -38,94 +43,20 @@ export default function BuyPage() {
     loadCatalog();
   }, []);
 
-  const services = useMemo(() => {
-    const map = new Map();
-
-    products.forEach((item) => {
-      if (!item.platform_id) return;
-
-      const id = String(item.platform_id);
-
-      if (!map.has(id)) {
-        map.set(id, {
-          id: item.platform_id,
-          name: item.service_name || item.name,
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [products]);
-
-  const visibleServices = useMemo(() => {
-    const keyword = serviceSearch.trim().toLowerCase();
-
-    if (!keyword) return services;
-
-    return services.filter((item) =>
-      item.name.toLowerCase().includes(keyword)
-    );
-  }, [services, serviceSearch]);
-
-  const countries = useMemo(() => {
-    const map = new Map();
-
-    products
-      .filter(
-        (item) =>
-          service === "all" ||
-          String(item.platform_id) === String(service)
-      )
-      .forEach((item) => {
-        if (!item.country_id) return;
-
-        const id = String(item.country_id);
-
-        if (!map.has(id)) {
-          map.set(id, {
-            id: item.country_id,
-            name: item.country_name,
-            code: item.country_code,
-          });
-        }
-      });
-
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [products, service]);
-
   const operators = useMemo(() => {
     const map = new Map();
 
-    products
-      .filter(
-        (item) =>
-          (service === "all" ||
-            String(item.platform_id) === String(service)) &&
-          (country === "all" ||
-            String(item.country_id) === String(country))
-      )
-      .forEach((item) => {
-        const id =
-          item.operator_id == null
-            ? "any"
-            : String(item.operator_id);
+    products.forEach((item) => {
+      const id = item.operator_id ?? "any";
+      const name = item.operator_display || "Semua Operator";
 
-        if (!map.has(id)) {
-          map.set(id, {
-            id,
-            name: item.operator_name || "Semua Operator",
-          });
-        }
-      });
+      if (!map.has(String(id))) {
+        map.set(String(id), name);
+      }
+    });
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [products, service, country]);
+    return Array.from(map.entries());
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
@@ -139,28 +70,36 @@ export default function BuyPage() {
 
       const operatorMatch =
         operator === "all" ||
-        (operator === "any"
-          ? item.operator_id == null
-          : String(item.operator_id) === String(operator));
+        String(item.operator_id ?? "any") === String(operator);
 
-      return serviceMatch && countryMatch && operatorMatch;
+      const searchText = search.toLowerCase();
+
+      const searchMatch =
+        !searchText ||
+        String(item.name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(item.service_name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(item.country_name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(item.operator_display || "")
+          .toLowerCase()
+          .includes(searchText);
+
+      return (
+        serviceMatch &&
+        countryMatch &&
+        operatorMatch &&
+        searchMatch
+      );
     });
-  }, [products, service, country, operator]);
+  }, [products, service, country, operator, search]);
 
   function getPrice(price) {
     return Number(price || 0) + 1000;
-  }
-
-  function getFlag(code) {
-    if (!code || code.length !== 2) return "🌎";
-
-    return code
-      .toUpperCase()
-      .split("")
-      .map((char) =>
-        String.fromCodePoint(127397 + char.charCodeAt(0))
-      )
-      .join("");
   }
 
   return (
@@ -172,8 +111,12 @@ export default function BuyPage() {
         padding: "24px",
       }}
     >
-      <div style={{ maxWidth: "1300px", margin: "auto" }}>
-
+      <div
+        style={{
+          maxWidth: "1400px",
+          margin: "auto",
+        }}
+      >
         <nav
           style={{
             display: "flex",
@@ -190,7 +133,10 @@ export default function BuyPage() {
               color: "#5eead4",
             }}
           >
-            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
+            NOKOS{" "}
+            <span style={{ color: "#fff" }}>
+              VIRTUAL
+            </span>
           </div>
 
           <a
@@ -205,16 +151,26 @@ export default function BuyPage() {
         </nav>
 
         <section style={{ marginTop: "40px" }}>
-          <p style={{ color: "#5eead4", fontWeight: 700 }}>
+          <p
+            style={{
+              color: "#5eead4",
+              fontWeight: 700,
+            }}
+          >
             BELI NOMOR
           </p>
 
-          <h1 style={{ fontSize: "32px", margin: "8px 0" }}>
+          <h1
+            style={{
+              fontSize: "32px",
+              margin: "8px 0",
+            }}
+          >
             Pilih Nomor Virtual
           </h1>
 
           <p style={{ color: "#94a3b8" }}>
-            Pilih layanan, negara, dan operator yang tersedia.
+            Pilih layanan, negara dan operator yang tersedia.
           </p>
         </section>
 
@@ -227,85 +183,73 @@ export default function BuyPage() {
             borderRadius: "16px",
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "15px",
+              "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "12px",
           }}
         >
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔎 Cari layanan..."
+            style={inputStyle}
+          />
 
-          {/* CARI LAYANAN */}
-          <div>
-            <input
-              value={serviceSearch}
-              onChange={(e) => setServiceSearch(e.target.value)}
-              placeholder="🔍 Cari layanan..."
-              style={inputStyle}
-            />
-
-            <select
-              value={service}
-              onChange={(e) => {
-                setService(e.target.value);
-                setCountry("all");
-                setOperator("all");
-              }}
-              style={{
-                ...selectStyle,
-                marginTop: "8px",
-              }}
-            >
-              <option value="all">
-                Semua Layanan ({services.length})
-              </option>
-
-              {visibleServices.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* NEGARA */}
           <select
-            value={country}
-            onChange={(e) => {
-              setCountry(e.target.value);
-              setOperator("all");
-            }}
+            value={service}
+            onChange={(e) => setService(e.target.value)}
             style={selectStyle}
           >
             <option value="all">
-              Semua Negara ({countries.length})
+              Semua Layanan
             </option>
 
-            {countries.map((item) => (
-              <option key={item.id} value={item.id}>
-                {getFlag(item.code)} {item.name}
-              </option>
-            ))}
-          </select>
-
-          {/* OPERATOR */}
-          <select
-            value={operator}
-            onChange={(e) => setOperator(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="all">
-              Semua Operator ({operators.length})
-            </option>
-
-            {operators.map((item) => (
+            {services.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
           </select>
 
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="all">
+              Semua Negara
+            </option>
+
+            {countries.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.emoji || "🌎"} {item.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={operator}
+            onChange={(e) => setOperator(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="all">
+              Semua Operator
+            </option>
+
+            {operators.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
         </section>
 
-        <div style={{ marginTop: "25px", color: "#94a3b8" }}>
-          {loading && "Memuat katalog SMSCode..."}
+        <div
+          style={{
+            marginTop: "25px",
+            color: "#94a3b8",
+          }}
+        >
+          {loading && "Memuat katalog..."}
 
           {!loading && !error && (
             <>
@@ -313,7 +257,7 @@ export default function BuyPage() {
               <strong style={{ color: "#fff" }}>
                 {filteredProducts.length}
               </strong>{" "}
-              produk
+              nomor
             </>
           )}
 
@@ -330,7 +274,7 @@ export default function BuyPage() {
               marginTop: "16px",
               display: "grid",
               gridTemplateColumns:
-                "repeat(auto-fill, minmax(260px, 1fr))",
+                "repeat(auto-fill, minmax(270px, 1fr))",
               gap: "16px",
             }}
           >
@@ -357,7 +301,7 @@ export default function BuyPage() {
                       fontSize: "18px",
                     }}
                   >
-                    {item.service_name || item.name}
+                    {item.service_name}
                   </h2>
 
                   <span
@@ -371,27 +315,29 @@ export default function BuyPage() {
                   </span>
                 </div>
 
-                <p style={{ color: "#94a3b8" }}>
-                  {getFlag(item.country_code)}{" "}
+                <p
+                  style={{
+                    color: "#cbd5e1",
+                    marginTop: "16px",
+                  }}
+                >
+                  {item.country_emoji}{" "}
                   {item.country_name}
                 </p>
 
                 <p style={{ color: "#94a3b8" }}>
-                  📡 {item.operator_name}
+                  📡 {item.operator_display}
                 </p>
 
-                <p
-                  style={{
-                    color: "#64748b",
-                    fontSize: "13px",
-                  }}
-                >
-                  {item.name}
+                <p style={{ color: "#94a3b8" }}>
+                  📱 {item.name}
                 </p>
 
                 <h2 style={{ marginTop: "20px" }}>
                   Rp{" "}
-                  {getPrice(item.price).toLocaleString("id-ID")}
+                  {getPrice(item.price).toLocaleString(
+                    "id-ID"
+                  )}
                 </h2>
 
                 <button
@@ -414,21 +360,26 @@ export default function BuyPage() {
           </section>
         )}
 
+        {!loading &&
+          !error &&
+          filteredProducts.length === 0 && (
+            <div
+              style={{
+                marginTop: "30px",
+                padding: "30px",
+                textAlign: "center",
+                background: "#111827",
+                borderRadius: "16px",
+                color: "#94a3b8",
+              }}
+            >
+              Nomor tidak ditemukan.
+            </div>
+          )}
       </div>
     </main>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "13px",
-  borderRadius: "10px",
-  border: "1px solid #374151",
-  background: "#070b14",
-  color: "#fff",
-  fontSize: "15px",
-};
 
 const selectStyle = {
   width: "100%",
@@ -438,4 +389,15 @@ const selectStyle = {
   background: "#070b14",
   color: "#fff",
   fontSize: "15px",
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: "13px",
+  borderRadius: "10px",
+  border: "1px solid #374151",
+  background: "#070b14",
+  color: "#fff",
+  fontSize: "15px",
+  boxSizing: "border-box",
 };
