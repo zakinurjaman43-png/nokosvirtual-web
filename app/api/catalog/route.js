@@ -8,29 +8,99 @@ export async function GET(request) {
     const platformId = searchParams.get("platform_id");
     const operatorId = searchParams.get("operator_id");
 
-    const params = new URLSearchParams();
+    const productParams = new URLSearchParams();
 
-    if (countryId) params.set("country_id", countryId);
-    if (platformId) params.set("platform_id", platformId);
-    if (operatorId) params.set("operator_id", operatorId);
+    if (countryId) productParams.set("country_id", countryId);
+    if (platformId) productParams.set("platform_id", platformId);
+    if (operatorId) productParams.set("operator_id", operatorId);
 
-    params.set("limit", "10000");
-    params.set("page", "1");
+    productParams.set("limit", "10000");
+    productParams.set("page", "1");
 
-    const response = await fetch(
-      `https://api.smscode.gg/v1/catalog/products?${params.toString()}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.SMSCODE_TOKEN}`,
-        },
-        cache: "no-store",
-      }
+    const headers = {
+      Authorization: `Bearer ${process.env.SMSCODE_TOKEN}`,
+    };
+
+    const [productsResponse, countriesResponse, servicesResponse] =
+      await Promise.all([
+        fetch(
+          `https://api.smscode.gg/v1/catalog/products?${productParams.toString()}`,
+          {
+            headers,
+            cache: "no-store",
+          }
+        ),
+
+        fetch("https://api.smscode.gg/v1/catalog/countries", {
+          headers,
+          cache: "no-store",
+        }),
+
+        fetch("https://api.smscode.gg/v1/catalog/services", {
+          headers,
+          cache: "no-store",
+        }),
+      ]);
+
+    const productsData = await productsResponse.json();
+    const countriesData = await countriesResponse.json();
+    const servicesData = await servicesResponse.json();
+
+    if (!productsResponse.ok) {
+      return NextResponse.json(productsData, {
+        status: productsResponse.status,
+      });
+    }
+
+    const countries = countriesData.data || [];
+    const services = servicesData.data || [];
+    const products = productsData.data || [];
+
+    const countryMap = new Map(
+      countries.map((country) => [
+        String(country.id),
+        country,
+      ])
     );
 
-    const data = await response.json();
+    const serviceMap = new Map(
+      services.map((service) => [
+        String(service.id),
+        service,
+      ])
+    );
 
-    return NextResponse.json(data, {
-      status: response.status,
+    const enrichedProducts = products.map((product) => {
+      const country = countryMap.get(
+        String(product.country_id)
+      );
+
+      const service = serviceMap.get(
+        String(product.platform_id)
+      );
+
+      return {
+        ...product,
+
+        country_name: country?.name || `Negara ${product.country_id}`,
+        country_code: country?.code || "",
+        country_emoji: country?.emoji || "",
+
+        service_name:
+          service?.name ||
+          `Platform ${product.platform_id}`,
+
+        operator_name:
+          product.operator_name ||
+          "Semua Operator",
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: enrichedProducts,
+      countries,
+      services,
     });
   } catch (error) {
     return NextResponse.json(
