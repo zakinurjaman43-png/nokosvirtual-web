@@ -10,13 +10,13 @@ const stats = [
 ];
 
 const menus = [
-  { name: "Users", icon: "👥" },
-  { name: "Orders", icon: "📦" },
-  { name: "Deposits", icon: "💳" },
-  { name: "Transactions", icon: "💰" },
-  { name: "Support Tickets", icon: "🎫" },
-  { name: "Affiliate", icon: "🤝" },
-  { name: "Pricing", icon: "⚙️" },
+  { name: "Users", icon: "👥", href: "/admin/users" },
+  { name: "Orders", icon: "📦", href: "/admin/orders" },
+  { name: "Deposits", icon: "💳", href: "/admin/deposits" },
+  { name: "Transactions", icon: "💰", href: "/admin/transactions" },
+  { name: "Support Tickets", icon: "🎫", href: "/admin/support" },
+  { name: "Affiliate", icon: "🤝", href: "/admin/affiliate" },
+  { name: "Pricing", icon: "⚙️", href: "/admin/pricing" },
 ];
 
 export default function AdminPage() {
@@ -53,10 +53,7 @@ export default function AdminPage() {
               marginBottom: "35px",
             }}
           >
-            NOKOS{" "}
-            <span style={{ color: "#fff" }}>
-              VIRTUAL
-            </span>
+            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
           </div>
 
           <div
@@ -71,6 +68,7 @@ export default function AdminPage() {
             ADMIN PANEL
           </div>
 
+          {/* DASHBOARD */}
           <Link
             href="/admin"
             style={{
@@ -87,24 +85,29 @@ export default function AdminPage() {
             📊 Dashboard
           </Link>
 
+          {/* MENU */}
           {menus.map((menu) => (
-            <div
+            <Link
               key={menu.name}
+              href={menu.href}
               style={{
+                display: "block",
                 padding: "12px",
                 color: "#94a3b8",
                 borderRadius: "10px",
                 marginBottom: "3px",
-                cursor: "pointer",
+                textDecoration: "none",
+                fontWeight: 600,
               }}
             >
               {menu.icon}{" "}
               <span style={{ marginLeft: "6px" }}>
                 {menu.name}
               </span>
-            </div>
+            </Link>
           ))}
 
+          {/* WEBSITE */}
           <div
             style={{
               borderTop: "1px solid #1f2937",
@@ -134,6 +137,7 @@ export default function AdminPage() {
             boxSizing: "border-box",
           }}
         >
+          {/* HEADER */}
           <div
             style={{
               display: "flex",
@@ -236,7 +240,7 @@ export default function AdminPage() {
             ))}
           </div>
 
-          {/* QUICK ACTION */}
+          {/* QUICK MANAGEMENT */}
           <div
             style={{
               marginTop: "25px",
@@ -251,8 +255,7 @@ export default function AdminPage() {
             </h2>
 
             <p style={{ color: "#64748b" }}>
-              Menu administrasi akan dihubungkan ke database
-              setelah sistem user dan transaksi aktif.
+              Pilih menu untuk membuka halaman administrasinya.
             </p>
 
             <div
@@ -265,9 +268,11 @@ export default function AdminPage() {
               }}
             >
               {menus.map((menu) => (
-                <button
+                <Link
                   key={menu.name}
+                  href={menu.href}
                   style={{
+                    display: "block",
                     padding: "15px",
                     background: "#070b14",
                     border: "1px solid #1f2937",
@@ -275,10 +280,12 @@ export default function AdminPage() {
                     color: "#cbd5e1",
                     textAlign: "left",
                     cursor: "pointer",
+                    textDecoration: "none",
+                    boxSizing: "border-box",
                   }}
                 >
                   {menu.icon} {menu.name}
-                </button>
+                </Link>
               ))}
             </div>
           </div>
