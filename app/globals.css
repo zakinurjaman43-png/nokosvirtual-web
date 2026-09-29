@@ -6,4 +6,182 @@ html,
 body {
   margin: 0;
   padding: 0;
+  background: #070b14;
+  color: #f5f7fb;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.container {
+  width: min(1120px, calc(100% - 32px));
+  margin: auto;
+}
+
+.nav {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1d2636;
+}
+
+.brand {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.brand span {
+  color: #5eead4;
+}
+
+.nav a {
+  color: #b9c3d4;
+  margin-left: 24px;
+  font-size: 14px;
+}
+
+.nav a:hover {
+  color: #5eead4;
+}
+
+.hero {
+  padding: 90px 0 70px;
+}
+
+.hero h1 {
+  max-width: 760px;
+  margin: 0 0 20px;
+  font-size: clamp(42px, 7vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -3px;
+}
+
+.hero p {
+  max-width: 680px;
+  color: #9eabbf;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: #5eead4;
+  color: #061014;
+}
+
+.btn.primary:hover {
+  background: #2dd4bf;
+}
+
+.btn.dark {
+  background: #151c2b;
+  color: #fff;
+  border: 1px solid #273247;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  padding: 20px 0 80px;
+}
+
+.feature {
+  background: #0d1421;
+  border: 1px solid #1d293b;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.feature h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.feature p {
+  margin: 0;
+  color: #8f9caf;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.formbox {
+  width: min(440px, 100%);
+  margin: 80px auto;
+  padding: 32px;
+  background: #0d1421;
+  border: 1px solid #1d293b;
+  border-radius: 18px;
+}
+
+.formbox h2 {
+  margin-top: 24px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 800px) {
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .nav a {
+    margin-left: 12px;
+  }
+}
+
+@media (max-width: 560px) {
+  .container {
+    width: min(100% - 24px, 1120px);
+  }
+
+  .nav {
+    height: 64px;
+  }
+
+  .nav a {
+    font-size: 13px;
+    margin-left: 10px;
+  }
+
+  .hero {
+    padding: 60px 0 50px;
+  }
+
+  .hero h1 {
+    font-size: 44px;
+    letter-spacing: -2px;
+  }
+
+  .hero p {
+    font-size: 16px;
+  }
+
+  .features {
+    grid-template-columns: 1fr;
+  }
+
+  .formbox {
+    margin: 40px auto;
+    padding: 24px;
+  }
 }
