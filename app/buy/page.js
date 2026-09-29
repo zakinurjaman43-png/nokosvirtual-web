@@ -8,6 +8,7 @@ export default function BuyPage() {
   const [error, setError] = useState("");
 
   const [service, setService] = useState("all");
+  const [serviceSearch, setServiceSearch] = useState("");
   const [country, setCountry] = useState("all");
   const [operator, setOperator] = useState("all");
 
@@ -37,7 +38,6 @@ export default function BuyPage() {
     loadCatalog();
   }, []);
 
-  // Hanya layanan yang benar-benar punya produk
   const services = useMemo(() => {
     const map = new Map();
 
@@ -59,7 +59,16 @@ export default function BuyPage() {
     );
   }, [products]);
 
-  // Negara mengikuti layanan yang dipilih
+  const visibleServices = useMemo(() => {
+    const keyword = serviceSearch.trim().toLowerCase();
+
+    if (!keyword) return services;
+
+    return services.filter((item) =>
+      item.name.toLowerCase().includes(keyword)
+    );
+  }, [services, serviceSearch]);
+
   const countries = useMemo(() => {
     const map = new Map();
 
@@ -88,7 +97,6 @@ export default function BuyPage() {
     );
   }, [products, service]);
 
-  // Operator mengikuti layanan + negara
   const operators = useMemo(() => {
     const map = new Map();
 
@@ -119,7 +127,6 @@ export default function BuyPage() {
     );
   }, [products, service, country]);
 
-  // Produk yang cocok dengan filter
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
       const serviceMatch =
@@ -224,26 +231,41 @@ export default function BuyPage() {
             gap: "15px",
           }}
         >
-          <select
-            value={service}
-            onChange={(e) => {
-              setService(e.target.value);
-              setCountry("all");
-              setOperator("all");
-            }}
-            style={selectStyle}
-          >
-            <option value="all">
-              Semua Layanan ({services.length})
-            </option>
 
-            {services.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
+          {/* CARI LAYANAN */}
+          <div>
+            <input
+              value={serviceSearch}
+              onChange={(e) => setServiceSearch(e.target.value)}
+              placeholder="🔍 Cari layanan..."
+              style={inputStyle}
+            />
+
+            <select
+              value={service}
+              onChange={(e) => {
+                setService(e.target.value);
+                setCountry("all");
+                setOperator("all");
+              }}
+              style={{
+                ...selectStyle,
+                marginTop: "8px",
+              }}
+            >
+              <option value="all">
+                Semua Layanan ({services.length})
               </option>
-            ))}
-          </select>
 
+              {visibleServices.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* NEGARA */}
           <select
             value={country}
             onChange={(e) => {
@@ -263,6 +285,7 @@ export default function BuyPage() {
             ))}
           </select>
 
+          {/* OPERATOR */}
           <select
             value={operator}
             onChange={(e) => setOperator(e.target.value)}
@@ -278,6 +301,7 @@ export default function BuyPage() {
               </option>
             ))}
           </select>
+
         </section>
 
         <div style={{ marginTop: "25px", color: "#94a3b8" }}>
@@ -394,6 +418,17 @@ export default function BuyPage() {
     </main>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "13px",
+  borderRadius: "10px",
+  border: "1px solid #374151",
+  background: "#070b14",
+  color: "#fff",
+  fontSize: "15px",
+};
 
 const selectStyle = {
   width: "100%",
