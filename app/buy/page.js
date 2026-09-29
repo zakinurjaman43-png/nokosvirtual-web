@@ -4,9 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function BuyPage() {
   const [products, setProducts] = useState([]);
-  const [countries, setCountries] = useState([]);
-  const [services, setServices] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -30,8 +27,6 @@ export default function BuyPage() {
         }
 
         setProducts(result.data || []);
-        setCountries(result.countries || []);
-        setServices(result.services || []);
       } catch (err) {
         setError("Katalog SMSCode gagal dimuat.");
       } finally {
@@ -42,24 +37,89 @@ export default function BuyPage() {
     loadCatalog();
   }, []);
 
-  const operators = useMemo(() => {
+  // Hanya layanan yang benar-benar punya produk
+  const services = useMemo(() => {
     const map = new Map();
 
     products.forEach((item) => {
-      const id = item.operator_id ?? "any";
-      const name = item.operator_name || "Semua Operator";
+      if (!item.platform_id) return;
 
-      if (!map.has(String(id))) {
-        map.set(String(id), {
-          id,
-          name,
+      const id = String(item.platform_id);
+
+      if (!map.has(id)) {
+        map.set(id, {
+          id: item.platform_id,
+          name: item.service_name || item.name,
         });
       }
     });
 
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
   }, [products]);
 
+  // Negara mengikuti layanan yang dipilih
+  const countries = useMemo(() => {
+    const map = new Map();
+
+    products
+      .filter(
+        (item) =>
+          service === "all" ||
+          String(item.platform_id) === String(service)
+      )
+      .forEach((item) => {
+        if (!item.country_id) return;
+
+        const id = String(item.country_id);
+
+        if (!map.has(id)) {
+          map.set(id, {
+            id: item.country_id,
+            name: item.country_name,
+            code: item.country_code,
+          });
+        }
+      });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [products, service]);
+
+  // Operator mengikuti layanan + negara
+  const operators = useMemo(() => {
+    const map = new Map();
+
+    products
+      .filter(
+        (item) =>
+          (service === "all" ||
+            String(item.platform_id) === String(service)) &&
+          (country === "all" ||
+            String(item.country_id) === String(country))
+      )
+      .forEach((item) => {
+        const id =
+          item.operator_id == null
+            ? "any"
+            : String(item.operator_id);
+
+        if (!map.has(id)) {
+          map.set(id, {
+            id,
+            name: item.operator_name || "Semua Operator",
+          });
+        }
+      });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+  }, [products, service, country]);
+
+  // Produk yang cocok dengan filter
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
       const serviceMatch =
@@ -107,7 +167,6 @@ export default function BuyPage() {
     >
       <div style={{ maxWidth: "1300px", margin: "auto" }}>
 
-        {/* HEADER */}
         <nav
           style={{
             display: "flex",
@@ -138,7 +197,6 @@ export default function BuyPage() {
           </a>
         </nav>
 
-        {/* TITLE */}
         <section style={{ marginTop: "40px" }}>
           <p style={{ color: "#5eead4", fontWeight: 700 }}>
             BELI NOMOR
@@ -153,7 +211,6 @@ export default function BuyPage() {
           </p>
         </section>
 
-        {/* FILTER */}
         <section
           style={{
             marginTop: "30px",
@@ -167,10 +224,13 @@ export default function BuyPage() {
             gap: "15px",
           }}
         >
-          {/* SERVICE */}
           <select
             value={service}
-            onChange={(e) => setService(e.target.value)}
+            onChange={(e) => {
+              setService(e.target.value);
+              setCountry("all");
+              setOperator("all");
+            }}
             style={selectStyle}
           >
             <option value="all">
@@ -184,10 +244,12 @@ export default function BuyPage() {
             ))}
           </select>
 
-          {/* COUNTRY */}
           <select
             value={country}
-            onChange={(e) => setCountry(e.target.value)}
+            onChange={(e) => {
+              setCountry(e.target.value);
+              setOperator("all");
+            }}
             style={selectStyle}
           >
             <option value="all">
@@ -201,28 +263,23 @@ export default function BuyPage() {
             ))}
           </select>
 
-          {/* OPERATOR */}
           <select
             value={operator}
             onChange={(e) => setOperator(e.target.value)}
             style={selectStyle}
           >
             <option value="all">
-              Semua Operator
+              Semua Operator ({operators.length})
             </option>
 
             {operators.map((item) => (
-              <option
-                key={String(item.id)}
-                value={String(item.id)}
-              >
+              <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
           </select>
         </section>
 
-        {/* STATUS */}
         <div style={{ marginTop: "25px", color: "#94a3b8" }}>
           {loading && "Memuat katalog SMSCode..."}
 
@@ -243,7 +300,6 @@ export default function BuyPage() {
           )}
         </div>
 
-        {/* PRODUCTS */}
         {!loading && !error && (
           <section
             style={{
