@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function BuyPage() {
   const [products, setProducts] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [services, setServices] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,6 +30,8 @@ export default function BuyPage() {
         }
 
         setProducts(result.data || []);
+        setCountries(result.countries || []);
+        setServices(result.services || []);
       } catch (err) {
         setError("Katalog SMSCode gagal dimuat.");
       } finally {
@@ -37,22 +42,22 @@ export default function BuyPage() {
     loadCatalog();
   }, []);
 
-  const services = useMemo(() => {
-    return [...new Set(products.map((item) => item.platform_id))]
-      .filter(Boolean)
-      .sort((a, b) => Number(a) - Number(b));
-  }, [products]);
-
-  const countries = useMemo(() => {
-    return [...new Set(products.map((item) => item.country_id))]
-      .filter(Boolean)
-      .sort((a, b) => Number(a) - Number(b));
-  }, [products]);
-
   const operators = useMemo(() => {
-    return [...new Set(products.map((item) => item.operator_id))]
-      .filter(Boolean)
-      .sort((a, b) => Number(a) - Number(b));
+    const map = new Map();
+
+    products.forEach((item) => {
+      const id = item.operator_id ?? "any";
+      const name = item.operator_name || "Semua Operator";
+
+      if (!map.has(String(id))) {
+        map.set(String(id), {
+          id,
+          name,
+        });
+      }
+    });
+
+    return Array.from(map.values());
   }, [products]);
 
   const filteredProducts = useMemo(() => {
@@ -67,15 +72,28 @@ export default function BuyPage() {
 
       const operatorMatch =
         operator === "all" ||
-        String(item.operator_id) === String(operator);
+        (operator === "any"
+          ? item.operator_id == null
+          : String(item.operator_id) === String(operator));
 
       return serviceMatch && countryMatch && operatorMatch;
     });
   }, [products, service, country, operator]);
 
   function getPrice(price) {
-    const supplierPrice = Number(price || 0);
-    return supplierPrice + 1000;
+    return Number(price || 0) + 1000;
+  }
+
+  function getFlag(code) {
+    if (!code || code.length !== 2) return "🌎";
+
+    return code
+      .toUpperCase()
+      .split("")
+      .map((char) =>
+        String.fromCodePoint(127397 + char.charCodeAt(0))
+      )
+      .join("");
   }
 
   return (
@@ -131,7 +149,7 @@ export default function BuyPage() {
           </h1>
 
           <p style={{ color: "#94a3b8" }}>
-            Data layanan diambil langsung dari supplier.
+            Pilih layanan, negara, dan operator yang tersedia.
           </p>
         </section>
 
@@ -149,6 +167,7 @@ export default function BuyPage() {
             gap: "15px",
           }}
         >
+          {/* SERVICE */}
           <select
             value={service}
             onChange={(e) => setService(e.target.value)}
@@ -158,13 +177,14 @@ export default function BuyPage() {
               Semua Layanan ({services.length})
             </option>
 
-            {services.map((id) => (
-              <option key={id} value={id}>
-                Platform {id}
+            {services.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
 
+          {/* COUNTRY */}
           <select
             value={country}
             onChange={(e) => setCountry(e.target.value)}
@@ -174,25 +194,29 @@ export default function BuyPage() {
               Semua Negara ({countries.length})
             </option>
 
-            {countries.map((id) => (
-              <option key={id} value={id}>
-                Negara {id}
+            {countries.map((item) => (
+              <option key={item.id} value={item.id}>
+                {getFlag(item.code)} {item.name}
               </option>
             ))}
           </select>
 
+          {/* OPERATOR */}
           <select
             value={operator}
             onChange={(e) => setOperator(e.target.value)}
             style={selectStyle}
           >
             <option value="all">
-              Semua Operator ({operators.length})
+              Semua Operator
             </option>
 
-            {operators.map((id) => (
-              <option key={id} value={id}>
-                Operator {id}
+            {operators.map((item) => (
+              <option
+                key={String(item.id)}
+                value={String(item.id)}
+              >
+                {item.name}
               </option>
             ))}
           </select>
@@ -253,7 +277,7 @@ export default function BuyPage() {
                       fontSize: "18px",
                     }}
                   >
-                    {item.name || "Layanan"}
+                    {item.service_name || item.name}
                   </h2>
 
                   <span
@@ -268,17 +292,21 @@ export default function BuyPage() {
                 </div>
 
                 <p style={{ color: "#94a3b8" }}>
-                  🌎 Negara ID: {item.country_id}
+                  {getFlag(item.country_code)}{" "}
+                  {item.country_name}
                 </p>
 
                 <p style={{ color: "#94a3b8" }}>
-                  📡{" "}
-                  {item.operator_name ||
-                    `Operator ${item.operator_id || "-"}`}
+                  📡 {item.operator_name}
                 </p>
 
-                <p style={{ color: "#94a3b8" }}>
-                  📱 Platform ID: {item.platform_id}
+                <p
+                  style={{
+                    color: "#64748b",
+                    fontSize: "13px",
+                  }}
+                >
+                  {item.name}
                 </p>
 
                 <h2 style={{ marginTop: "20px" }}>
