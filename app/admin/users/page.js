@@ -6,9 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const { data: users, error } = await supabaseAdmin
     .from("users")
-    .select(
-      "id, telegram_id, username, first_name, balance, is_active, created_at"
-    )
+    .select("*")
     .order("created_at", { ascending: false });
 
   return (
@@ -21,7 +19,12 @@ export default async function UsersPage() {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <div
+        style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
         <Link
           href="/admin"
           style={{
@@ -59,130 +62,160 @@ export default async function UsersPage() {
                 color: "#fca5a5",
               }}
             >
-              Gagal mengambil data:
+              <strong>Gagal mengambil data:</strong>
               <br />
               {error.message}
             </div>
           ) : (
-            <div style={{ marginTop: "25px", overflowX: "auto" }}>
-              <table
+            <>
+              <div
                 style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
+                  marginTop: "25px",
+                  overflowX: "auto",
                 }}
               >
-                <thead>
-                  <tr
-                    style={{
-                      textAlign: "left",
-                      color: "#94a3b8",
-                      borderBottom: "1px solid #1f2937",
-                    }}
-                  >
-                    <th style={{ padding: "12px" }}>ID</th>
-                    <th style={{ padding: "12px" }}>Telegram ID</th>
-                    <th style={{ padding: "12px" }}>Username</th>
-                    <th style={{ padding: "12px" }}>Nama</th>
-                    <th style={{ padding: "12px" }}>Saldo</th>
-                    <th style={{ padding: "12px" }}>Status</th>
-                    <th style={{ padding: "12px" }}>Terdaftar</th>
-                  </tr>
-                </thead>
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <thead>
+                    <tr
+                      style={{
+                        textAlign: "left",
+                        color: "#94a3b8",
+                        borderBottom: "1px solid #1f2937",
+                      }}
+                    >
+                      <th style={{ padding: "12px" }}>ID</th>
+                      <th style={{ padding: "12px" }}>
+                        Telegram ID
+                      </th>
+                      <th style={{ padding: "12px" }}>
+                        Username
+                      </th>
+                      <th style={{ padding: "12px" }}>
+                        Nama
+                      </th>
+                      <th style={{ padding: "12px" }}>
+                        Saldo
+                      </th>
+                      <th style={{ padding: "12px" }}>
+                        Status
+                      </th>
+                      <th style={{ padding: "12px" }}>
+                        Terdaftar
+                      </th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                  {users?.length ? (
-                    users.map((user) => (
-                      <tr
-                        key={user.id}
-                        style={{
-                          borderBottom: "1px solid #1f2937",
-                        }}
-                      >
-                        <td style={{ padding: "12px" }}>
-                          {user.id}
-                        </td>
-
-                        <td style={{ padding: "12px" }}>
-                          {user.telegram_id || "-"}
-                        </td>
-
-                        <td style={{ padding: "12px" }}>
-                          {user.username
-                            ? `@${user.username}`
-                            : "-"}
-                        </td>
-
-                        <td style={{ padding: "12px" }}>
-                          {user.first_name || "-"}
-                        </td>
-
-                        <td
+                  <tbody>
+                    {users && users.length > 0 ? (
+                      users.map((user) => (
+                        <tr
+                          key={user.id}
                           style={{
-                            padding: "12px",
-                            color: "#5eead4",
-                            fontWeight: 700,
+                            borderBottom:
+                              "1px solid #1f2937",
                           }}
                         >
-                          Rp{" "}
-                          {Number(user.balance || 0).toLocaleString(
-                            "id-ID"
-                          )}
-                        </td>
+                          <td style={{ padding: "12px" }}>
+                            {user.id}
+                          </td>
 
-                        <td style={{ padding: "12px" }}>
-                          {user.is_active ? (
-                            <span style={{ color: "#22c55e" }}>
-                              ● Aktif
-                            </span>
-                          ) : (
-                            <span style={{ color: "#ef4444" }}>
-                              ● Nonaktif
-                            </span>
-                          )}
-                        </td>
+                          <td style={{ padding: "12px" }}>
+                            {user.telegram_id || "-"}
+                          </td>
 
+                          <td style={{ padding: "12px" }}>
+                            {user.username
+                              ? `@${user.username}`
+                              : "-"}
+                          </td>
+
+                          <td style={{ padding: "12px" }}>
+                            {user.first_name || "-"}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "12px",
+                              color: "#5eead4",
+                              fontWeight: 700,
+                            }}
+                          >
+                            Rp{" "}
+                            {Number(
+                              user.balance || 0
+                            ).toLocaleString("id-ID")}
+                          </td>
+
+                          <td style={{ padding: "12px" }}>
+                            {user.is_active ? (
+                              <span
+                                style={{
+                                  color: "#22c55e",
+                                }}
+                              >
+                                ● Aktif
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#ef4444",
+                                }}
+                              >
+                                ● Nonaktif
+                              </span>
+                            )}
+                          </td>
+
+                          <td
+                            style={{
+                              padding: "12px",
+                              color: "#94a3b8",
+                            }}
+                          >
+                            {user.created_at
+                              ? new Date(
+                                  user.created_at
+                                ).toLocaleString(
+                                  "id-ID"
+                                )
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
                         <td
+                          colSpan="7"
                           style={{
-                            padding: "12px",
-                            color: "#94a3b8",
+                            padding: "40px",
+                            textAlign: "center",
+                            color: "#64748b",
                           }}
                         >
-                          {user.created_at
-                            ? new Date(
-                                user.created_at
-                              ).toLocaleString("id-ID")
-                            : "-"}
+                          Belum ada user.
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="7"
-                        style={{
-                          padding: "30px",
-                          textAlign: "center",
-                          color: "#64748b",
-                        }}
-                      >
-                        Belum ada user.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          <div
-            style={{
-              marginTop: "20px",
-              color: "#64748b",
-            }}
-          >
-            Total user:{" "}
-            <strong>{users?.length || 0}</strong>
-          </div>
+              <div
+                style={{
+                  marginTop: "20px",
+                  color: "#64748b",
+                }}
+              >
+                Total user:{" "}
+                <strong>{users?.length || 0}</strong>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </main>
