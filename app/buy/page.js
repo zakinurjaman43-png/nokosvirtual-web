@@ -1,90 +1,210 @@
-import Link from "next/link";
+"use client";
 
-const products = [
-  {
-    country: "🇮🇩 Indonesia",
-    service: "WhatsApp",
-    price: "Rp5.250",
-  },
-  {
-    country: "🇮🇩 Indonesia",
-    service: "Telegram",
-    price: "Rp2.250",
-  },
-  {
-    country: "🇺🇸 United States",
-    service: "WhatsApp",
-    price: "Rp2.700",
-  },
-  {
-    country: "🇲🇾 Malaysia",
-    service: "Telegram",
-    price: "Rp1.750",
-  },
-];
+import { useState } from "react";
 
 export default function BuyPage() {
+  const [service, setService] = useState("Semua Layanan");
+  const [country, setCountry] = useState("Semua Negara");
+  const [operator, setOperator] = useState("Semua Operator");
+
+  const products = [
+    {
+      service: "WhatsApp",
+      country: "Indonesia",
+      operator: "Telkomsel",
+      stock: 24,
+      price: 5250,
+    },
+    {
+      service: "Telegram",
+      country: "Indonesia",
+      operator: "Indosat",
+      stock: 18,
+      price: 4750,
+    },
+    {
+      service: "WhatsApp",
+      country: "Malaysia",
+      operator: "Celcom",
+      stock: 12,
+      price: 6750,
+    },
+    {
+      service: "Telegram",
+      country: "Malaysia",
+      operator: "Digi",
+      stock: 9,
+      price: 5750,
+    },
+  ];
+
+  const filteredProducts = products.filter((item) => {
+    return (
+      (service === "Semua Layanan" || item.service === service) &&
+      (country === "Semua Negara" || item.country === country) &&
+      (operator === "Semua Operator" || item.operator === operator)
+    );
+  });
+
   return (
-    <main>
-      <div className="container">
-        <nav className="nav">
-          <div className="brand">
-            NOKOS <span>STORE</span>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#070b14",
+        color: "#fff",
+        padding: "24px",
+      }}
+    >
+      <div style={{ maxWidth: "1200px", margin: "auto" }}>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: "20px",
+            borderBottom: "1px solid #1f2937",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "22px",
+              fontWeight: 800,
+              color: "#5eead4",
+            }}
+          >
+            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
           </div>
 
-          <div>
-            <Link href="/">Home</Link>
-            <Link href="/buy">Beli Nomor</Link>
-            <Link href="/login">Masuk</Link>
-          </div>
-        </nav>
+          <a
+            href="/dashboard"
+            style={{
+              color: "#94a3b8",
+              textDecoration: "none",
+            }}
+          >
+            ← Dashboard
+          </a>
+        </div>
 
-        <section className="hero">
-          <div style={{ color: "#5eead4", fontWeight: 700 }}>
-            🛒 BELI NOMOR
-          </div>
+        <section style={{ marginTop: "40px" }}>
+          <p style={{ color: "#5eead4", fontWeight: 700 }}>
+            BELI NOMOR
+          </p>
 
-          <h1>
-            Pilih nomor
-            <br />
-            yang lu butuhkan.
+          <h1 style={{ fontSize: "32px", margin: "8px 0" }}>
+            Pilih Nomor Virtual
           </h1>
 
-          <p>
-            Pilih negara dan layanan untuk mendapatkan nomor virtual
-            dan menerima kode OTP.
+          <p style={{ color: "#94a3b8" }}>
+            Pilih layanan, negara, dan operator yang tersedia.
           </p>
         </section>
 
-        <section className="features">
-          {products.map((product, index) => (
-            <div className="feature" key={index}>
-              <div style={{ fontSize: 30 }}>
-                {product.country.split(" ")[0]}
-              </div>
+        <section
+          style={{
+            marginTop: "30px",
+            padding: "20px",
+            background: "#111827",
+            border: "1px solid #1f2937",
+            borderRadius: "16px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "15px",
+          }}
+        >
+          <select
+            value={service}
+            onChange={(e) => setService(e.target.value)}
+            style={selectStyle}
+          >
+            <option>Semua Layanan</option>
+            <option>WhatsApp</option>
+            <option>Telegram</option>
+          </select>
 
-              <h3>{product.country}</h3>
+          <select
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            style={selectStyle}
+          >
+            <option>Semua Negara</option>
+            <option>Indonesia</option>
+            <option>Malaysia</option>
+          </select>
 
-              <p>
-                Layanan: <b>{product.service}</b>
-              </p>
+          <select
+            value={operator}
+            onChange={(e) => setOperator(e.target.value)}
+            style={selectStyle}
+          >
+            <option>Semua Operator</option>
+            <option>Telkomsel</option>
+            <option>Indosat</option>
+            <option>Celcom</option>
+            <option>Digi</option>
+          </select>
+        </section>
 
-              <p
+        <section
+          style={{
+            marginTop: "25px",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "16px",
+          }}
+        >
+          {filteredProducts.map((item, index) => (
+            <div
+              key={index}
+              style={{
+                background: "#111827",
+                border: "1px solid #1f2937",
+                borderRadius: "16px",
+                padding: "20px",
+              }}
+            >
+              <div
                 style={{
-                  color: "#5eead4",
-                  fontSize: 20,
-                  fontWeight: 700,
+                  display: "flex",
+                  justifyContent: "space-between",
                 }}
               >
-                {product.price}
+                <h2 style={{ margin: 0 }}>{item.service}</h2>
+
+                <span
+                  style={{
+                    color: "#5eead4",
+                    fontSize: "13px",
+                  }}
+                >
+                  Stock {item.stock}
+                </span>
+              </div>
+
+              <p style={{ color: "#94a3b8", marginBottom: "6px" }}>
+                🌎 {item.country}
               </p>
 
+              <p style={{ color: "#94a3b8" }}>
+                📡 {item.operator}
+              </p>
+
+              <h2 style={{ marginTop: "20px" }}>
+                Rp {item.price.toLocaleString("id-ID")}
+              </h2>
+
               <button
-                className="btn primary"
                 style={{
-                  border: "none",
-                  cursor: "pointer",
                   width: "100%",
+                  marginTop: "10px",
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "10px",
+                  background: "#5eead4",
+                  color: "#06111a",
+                  fontWeight: 800,
+                  cursor: "pointer",
                 }}
               >
                 Beli Nomor
@@ -92,7 +212,18 @@ export default function BuyPage() {
             </div>
           ))}
         </section>
+
       </div>
     </main>
   );
 }
+
+const selectStyle = {
+  width: "100%",
+  padding: "13px",
+  borderRadius: "10px",
+  border: "1px solid #374151",
+  background: "#070b14",
+  color: "#fff",
+  fontSize: "15px",
+};
