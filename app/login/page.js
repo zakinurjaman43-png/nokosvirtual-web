@@ -1,6 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function Login() {
+  async function loginGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+
+    if (error) {
+      alert("Login Google gagal: " + error.message);
+    }
+  }
+
   return (
     <main>
       <div className="container">
@@ -16,6 +32,7 @@ export default function Login() {
           </p>
 
           <button
+            onClick={loginGoogle}
             className="btn primary"
             style={{ width: "100%", marginTop: 12 }}
           >
@@ -25,8 +42,9 @@ export default function Login() {
           <button
             className="btn dark"
             style={{ width: "100%", marginTop: 10 }}
+            disabled
           >
-            Masuk dengan Telegram
+            Telegram — segera hadir
           </button>
 
           <Link
@@ -34,7 +52,7 @@ export default function Login() {
             style={{
               display: "block",
               marginTop: 22,
-              color: "#72efb1"
+              color: "#72efb1",
             }}
           >
             ← Kembali
