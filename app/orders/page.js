@@ -1,53 +1,85 @@
 "use client";
 
-import { useState } from "react";
-
-const orders = [
-  {
-    id: "#161086557",
-    service: "WhatsApp",
-    country: "Indonesia",
-    phone: "6283172620894",
-    status: "ACTIVE",
-    price: 1748,
-    date: "Sep 27 19:51",
-  },
-  {
-    id: "#161086556",
-    service: "WhatsApp",
-    country: "Indonesia",
-    phone: "6281234567890",
-    status: "COMPLETED",
-    price: 2250,
-    date: "Sep 27 19:40",
-  },
-  {
-    id: "#161086555",
-    service: "Telegram",
-    country: "Malaysia",
-    phone: "60123456789",
-    status: "EXPIRED",
-    price: 2750,
-    date: "Sep 27 19:32",
-  },
-  {
-    id: "#161086554",
-    service: "WhatsApp",
-    country: "Indonesia",
-    phone: "6289876543210",
-    status: "CANCELED",
-    price: 1970,
-    date: "Sep 27 19:20",
-  },
-];
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  async function loadOrders() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const googleId = `google:${user.id}`;
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("telegram_id", googleId)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (!error) {
+      setOrders(data || []);
+    }
+
+    setLoading(false);
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   const filteredOrders =
     filter === "ALL"
       ? orders
-      : orders.filter((order) => order.status === filter);
+      : orders.filter(
+          (order) =>
+            String(order.status).toUpperCase() ===
+            filter
+        );
+
+  function statusStyle(status) {
+    const value = String(status || "").toUpperCase();
+
+    if (
+      ["ACTIVE", "PENDING", "WAITING", "WAITING_OTP"].includes(
+        value
+      )
+    ) {
+      return {
+        background: "#164e63",
+        color: "#67e8f9",
+      };
+    }
+
+    if (value === "COMPLETED") {
+      return {
+        background: "#14532d",
+        color: "#86efac",
+      };
+    }
+
+    return {
+      background: "#3f1d2e",
+      color: "#fda4af",
+    };
+  }
 
   return (
     <main
@@ -58,8 +90,12 @@ export default function OrdersPage() {
         padding: "24px",
       }}
     >
-      <div style={{ maxWidth: "1300px", margin: "auto" }}>
-
+      <div
+        style={{
+          maxWidth: "1300px",
+          margin: "auto",
+        }}
+      >
         <nav
           style={{
             display: "flex",
@@ -76,18 +112,38 @@ export default function OrdersPage() {
               color: "#5eead4",
             }}
           >
-            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
+            NOKOS{" "}
+            <span style={{ color: "#fff" }}>
+              VIRTUAL
+            </span>
           </div>
 
-          <a
-            href="/dashboard"
+          <div
             style={{
-              color: "#94a3b8",
-              textDecoration: "none",
+              display: "flex",
+              gap: "18px",
             }}
           >
-            ← Dashboard
-          </a>
+            <Link href="/dashboard">
+              Dashboard
+            </Link>
+
+            <Link href="/buy">
+              Beli Nomor
+            </Link>
+
+            <button
+              onClick={logout}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#f87171",
+                cursor: "pointer",
+              }}
+            >
+              Keluar
+            </button>
+          </div>
         </nav>
 
         <section style={{ marginTop: "40px" }}>
@@ -95,13 +151,17 @@ export default function OrdersPage() {
             style={{
               color: "#5eead4",
               fontWeight: 700,
-              marginBottom: "8px",
             }}
           >
             PESANAN
           </p>
 
-          <h1 style={{ fontSize: "32px", margin: 0 }}>
+          <h1
+            style={{
+              fontSize: "32px",
+              margin: "8px 0",
+            }}
+          >
             Semua Pesanan
           </h1>
 
@@ -118,27 +178,38 @@ export default function OrdersPage() {
             marginTop: "28px",
           }}
         >
-          {["ALL", "ACTIVE", "COMPLETED", "EXPIRED", "CANCELED"].map(
-            (status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                style={{
-                  padding: "10px 16px",
-                  borderRadius: "10px",
-                  border: "1px solid #374151",
-                  background:
-                    filter === status ? "#5eead4" : "#111827",
-                  color:
-                    filter === status ? "#06111a" : "#cbd5e1",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {status === "ALL" ? "Semua" : status}
-              </button>
-            )
-          )}
+          {[
+            "ALL",
+            "ACTIVE",
+            "PENDING",
+            "COMPLETED",
+            "EXPIRED",
+            "CANCELED",
+          ].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                border: "1px solid #374151",
+                background:
+                  filter === status
+                    ? "#5eead4"
+                    : "#111827",
+                color:
+                  filter === status
+                    ? "#06111a"
+                    : "#cbd5e1",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {status === "ALL"
+                ? "Semua"
+                : status}
+            </button>
+          ))}
         </div>
 
         <section
@@ -150,101 +221,119 @@ export default function OrdersPage() {
             overflow: "hidden",
           }}
         >
-          <div style={{ overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                minWidth: "900px",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid #1f2937",
-                    color: "#64748b",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={th}>ORDER</th>
-                  <th style={th}>SERVICE</th>
-                  <th style={th}>COUNTRY</th>
-                  <th style={th}>PHONE</th>
-                  <th style={th}>STATUS</th>
-                  <th style={th}>PRICE</th>
-                  <th style={th}>DATE</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    style={{
-                      borderBottom: "1px solid #1f2937",
-                    }}
-                  >
-                    <td style={td}>{order.id}</td>
-
-                    <td style={td}>
-                      📱 {order.service}
-                    </td>
-
-                    <td style={td}>
-                      🇮🇩 {order.country}
-                    </td>
-
-                    <td style={td}>
-                      {order.phone}
-                    </td>
-
-                    <td style={td}>
-                      <span
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: "999px",
-                          fontSize: "12px",
-                          fontWeight: 800,
-                          background:
-                            order.status === "ACTIVE"
-                              ? "#164e63"
-                              : order.status === "COMPLETED"
-                              ? "#14532d"
-                              : "#3f1d2e",
-                          color:
-                            order.status === "ACTIVE"
-                              ? "#67e8f9"
-                              : order.status === "COMPLETED"
-                              ? "#86efac"
-                              : "#fda4af",
-                        }}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-
-                    <td style={td}>
-                      Rp {order.price.toLocaleString("id-ID")}
-                    </td>
-
-                    <td style={td}>
-                      {order.date}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredOrders.length === 0 && (
+          {loading ? (
             <div
               style={{
                 padding: "50px",
+                textAlign: "center",
+                color: "#94a3b8",
+              }}
+            >
+              Memuat pesanan...
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div
+              style={{
+                padding: "60px",
                 textAlign: "center",
                 color: "#64748b",
               }}
             >
               Belum ada pesanan.
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: "1000px",
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom:
+                        "1px solid #1f2937",
+                      color: "#64748b",
+                      textAlign: "left",
+                    }}
+                  >
+                    <th style={th}>ORDER</th>
+                    <th style={th}>SERVICE</th>
+                    <th style={th}>COUNTRY</th>
+                    <th style={th}>PHONE</th>
+                    <th style={th}>STATUS</th>
+                    <th style={th}>PRICE</th>
+                    <th style={th}>DATE</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      style={{
+                        borderBottom:
+                          "1px solid #1f2937",
+                      }}
+                    >
+                      <td style={td}>
+                        #{order.id}
+                      </td>
+
+                      <td style={td}>
+                        📱{" "}
+                        {order.service_id || "-"}
+                      </td>
+
+                      <td style={td}>
+                        🌎{" "}
+                        {order.country_id || "-"}
+                      </td>
+
+                      <td style={td}>
+                        {order.phone_number || "-"}
+                      </td>
+
+                      <td style={td}>
+                        <span
+                          style={{
+                            ...statusStyle(
+                              order.status
+                            ),
+                            padding:
+                              "6px 10px",
+                            borderRadius:
+                              "999px",
+                            fontSize: "12px",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {order.status || "-"}
+                        </span>
+                      </td>
+
+                      <td style={td}>
+                        Rp{" "}
+                        {Number(
+                          order.price || 0
+                        ).toLocaleString("id-ID")}
+                      </td>
+
+                      <td style={td}>
+                        {order.created_at
+                          ? new Date(
+                              order.created_at
+                            ).toLocaleString(
+                              "id-ID"
+                            )
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
