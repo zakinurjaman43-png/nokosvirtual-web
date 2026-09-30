@@ -1,25 +1,84 @@
-"use client";
-
 import Link from "next/link";
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
 
-const stats = [
-  { title: "Total Users", value: "0", icon: "👥" },
-  { title: "Total Orders", value: "0", icon: "📦" },
-  { title: "Pending Deposits", value: "0", icon: "💳" },
-  { title: "Revenue", value: "Rp 0", icon: "💰" },
-];
+export const dynamic = "force-dynamic";
 
-const menus = [
-  { name: "Users", icon: "👥", href: "/admin/users" },
-  { name: "Orders", icon: "📦", href: "/admin/orders" },
-  { name: "Deposits", icon: "💳", href: "/admin/deposits" },
-  { name: "Transactions", icon: "💰", href: "/admin/transactions" },
-  { name: "Support Tickets", icon: "🎫", href: "/admin/support" },
-  { name: "Affiliate", icon: "🤝", href: "/admin/affiliate" },
-  { name: "Pricing", icon: "⚙️", href: "/admin/pricing" },
-];
+export default async function AdminPage() {
+  const [
+    { count: totalUsers },
+    { count: totalOrders },
+    { count: activeOrders },
+    { data: users },
+    { data: recentOrders },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("users")
+      .select("*", { count: "exact", head: true }),
 
-export default function AdminPage() {
+    supabaseAdmin
+      .from("orders")
+      .select("*", { count: "exact", head: true }),
+
+    supabaseAdmin
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "ACTIVE"),
+
+    supabaseAdmin
+      .from("users")
+      .select("balance"),
+
+    supabaseAdmin
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  const totalBalance =
+    users?.reduce(
+      (total, user) => total + Number(user.balance || 0),
+      0
+    ) || 0;
+
+  const menus = [
+    {
+      name: "Users",
+      icon: "👥",
+      href: "/admin/users",
+    },
+    {
+      name: "Orders",
+      icon: "📦",
+      href: "/admin/orders",
+    },
+    {
+      name: "Deposits",
+      icon: "💳",
+      href: "/admin/deposits",
+    },
+    {
+      name: "Transactions",
+      icon: "💰",
+      href: "/admin/transactions",
+    },
+    {
+      name: "Support",
+      icon: "🎫",
+      href: "/admin/support",
+    },
+    {
+      name: "Affiliate",
+      icon: "🤝",
+      href: "/admin/affiliate",
+    },
+    {
+      name: "Pricing",
+      icon: "⚙️",
+      href: "/admin/pricing",
+    },
+  ];
+
   return (
     <main
       style={{
@@ -53,7 +112,10 @@ export default function AdminPage() {
               marginBottom: "35px",
             }}
           >
-            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
+            NOKOS{" "}
+            <span style={{ color: "#fff" }}>
+              VIRTUAL
+            </span>
           </div>
 
           <div
@@ -68,7 +130,6 @@ export default function AdminPage() {
             ADMIN PANEL
           </div>
 
-          {/* DASHBOARD */}
           <Link
             href="/admin"
             style={{
@@ -85,7 +146,6 @@ export default function AdminPage() {
             📊 Dashboard
           </Link>
 
-          {/* MENU */}
           {menus.map((menu) => (
             <Link
               key={menu.name}
@@ -106,27 +166,6 @@ export default function AdminPage() {
               </span>
             </Link>
           ))}
-
-          {/* WEBSITE */}
-          <div
-            style={{
-              borderTop: "1px solid #1f2937",
-              marginTop: "25px",
-              paddingTop: "20px",
-            }}
-          >
-            <Link
-              href="/dashboard"
-              style={{
-                color: "#94a3b8",
-                textDecoration: "none",
-                padding: "12px",
-                display: "block",
-              }}
-            >
-              ← Website
-            </Link>
-          </div>
         </aside>
 
         {/* CONTENT */}
@@ -137,57 +176,38 @@ export default function AdminPage() {
             boxSizing: "border-box",
           }}
         >
-          {/* HEADER */}
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
               marginBottom: "35px",
             }}
           >
-            <div>
-              <p
-                style={{
-                  color: "#5eead4",
-                  fontWeight: 700,
-                  margin: 0,
-                }}
-              >
-                ADMIN
-              </p>
-
-              <h1
-                style={{
-                  fontSize: "32px",
-                  margin: "8px 0",
-                }}
-              >
-                Dashboard Admin
-              </h1>
-
-              <p
-                style={{
-                  color: "#64748b",
-                  margin: 0,
-                }}
-              >
-                Kelola sistem NOKOS VIRTUAL.
-              </p>
-            </div>
-
-            <div
+            <p
               style={{
-                background: "#111827",
-                border: "1px solid #1f2937",
-                borderRadius: "10px",
-                padding: "10px 14px",
-                color: "#94a3b8",
-                fontSize: "14px",
+                color: "#5eead4",
+                fontWeight: 700,
+                margin: 0,
               }}
             >
-              👤 Administrator
-            </div>
+              ADMIN
+            </p>
+
+            <h1
+              style={{
+                fontSize: "32px",
+                margin: "8px 0",
+              }}
+            >
+              Dashboard Admin
+            </h1>
+
+            <p
+              style={{
+                color: "#64748b",
+                margin: 0,
+              }}
+            >
+              Data realtime dari Supabase.
+            </p>
           </div>
 
           {/* STATS */}
@@ -195,52 +215,38 @@ export default function AdminPage() {
             style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(200px, 1fr))",
+                "repeat(auto-fit, minmax(210px, 1fr))",
               gap: "16px",
             }}
           >
-            {stats.map((stat) => (
-              <div
-                key={stat.title}
-                style={{
-                  background: "#111827",
-                  border: "1px solid #1f2937",
-                  borderRadius: "16px",
-                  padding: "22px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "25px",
-                    marginBottom: "15px",
-                  }}
-                >
-                  {stat.icon}
-                </div>
+            <Stat
+              icon="👥"
+              title="Total Users"
+              value={totalUsers || 0}
+            />
 
-                <div
-                  style={{
-                    color: "#64748b",
-                    fontSize: "13px",
-                  }}
-                >
-                  {stat.title}
-                </div>
+            <Stat
+              icon="📦"
+              title="Total Orders"
+              value={totalOrders || 0}
+            />
 
-                <div
-                  style={{
-                    fontSize: "24px",
-                    fontWeight: 800,
-                    marginTop: "6px",
-                  }}
-                >
-                  {stat.value}
-                </div>
-              </div>
-            ))}
+            <Stat
+              icon="⚡"
+              title="Order Aktif"
+              value={activeOrders || 0}
+            />
+
+            <Stat
+              icon="💰"
+              title="Total Saldo"
+              value={`Rp ${totalBalance.toLocaleString(
+                "id-ID"
+              )}`}
+            />
           </div>
 
-          {/* QUICK MANAGEMENT */}
+          {/* QUICK MENU */}
           <div
             style={{
               marginTop: "25px",
@@ -253,10 +259,6 @@ export default function AdminPage() {
             <h2 style={{ marginTop: 0 }}>
               Quick Management
             </h2>
-
-            <p style={{ color: "#64748b" }}>
-              Pilih menu untuk membuka halaman administrasinya.
-            </p>
 
             <div
               style={{
@@ -272,16 +274,13 @@ export default function AdminPage() {
                   key={menu.name}
                   href={menu.href}
                   style={{
-                    display: "block",
-                    padding: "15px",
+                    padding: "18px",
                     background: "#070b14",
                     border: "1px solid #1f2937",
-                    borderRadius: "10px",
+                    borderRadius: "12px",
                     color: "#cbd5e1",
-                    textAlign: "left",
-                    cursor: "pointer",
                     textDecoration: "none",
-                    boxSizing: "border-box",
+                    fontWeight: 600,
                   }}
                 >
                   {menu.icon} {menu.name}
@@ -289,8 +288,174 @@ export default function AdminPage() {
               ))}
             </div>
           </div>
+
+          {/* RECENT ORDERS */}
+          <div
+            style={{
+              marginTop: "25px",
+              background: "#111827",
+              border: "1px solid #1f2937",
+              borderRadius: "16px",
+              padding: "24px",
+              overflowX: "auto",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h2 style={{ marginTop: 0 }}>
+                📦 Pesanan Terbaru
+              </h2>
+
+              <Link
+                href="/admin/orders"
+                style={{
+                  color: "#5eead4",
+                  textDecoration: "none",
+                }}
+              >
+                Lihat semua →
+              </Link>
+            </div>
+
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: "700px",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    textAlign: "left",
+                    color: "#94a3b8",
+                    borderBottom:
+                      "1px solid #1f2937",
+                  }}
+                >
+                  <th style={{ padding: "12px" }}>
+                    ID
+                  </th>
+                  <th style={{ padding: "12px" }}>
+                    Service
+                  </th>
+                  <th style={{ padding: "12px" }}>
+                    Country
+                  </th>
+                  <th style={{ padding: "12px" }}>
+                    Harga
+                  </th>
+                  <th style={{ padding: "12px" }}>
+                    Status
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {recentOrders?.length ? (
+                  recentOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      style={{
+                        borderBottom:
+                          "1px solid #1f2937",
+                      }}
+                    >
+                      <td style={{ padding: "12px" }}>
+                        {order.id}
+                      </td>
+
+                      <td style={{ padding: "12px" }}>
+                        {order.service_id || "-"}
+                      </td>
+
+                      <td style={{ padding: "12px" }}>
+                        {order.country_id || "-"}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: "12px",
+                          color: "#5eead4",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Rp{" "}
+                        {Number(
+                          order.price || 0
+                        ).toLocaleString("id-ID")}
+                      </td>
+
+                      <td style={{ padding: "12px" }}>
+                        {order.status || "-"}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      style={{
+                        padding: "40px",
+                        textAlign: "center",
+                        color: "#64748b",
+                      }}
+                    >
+                      Belum ada order.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </main>
+  );
+}
+
+function Stat({ icon, title, value }) {
+  return (
+    <div
+      style={{
+        background: "#111827",
+        border: "1px solid #1f2937",
+        borderRadius: "16px",
+        padding: "22px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "25px",
+          marginBottom: "15px",
+        }}
+      >
+        {icon}
+      </div>
+
+      <div
+        style={{
+          color: "#64748b",
+          fontSize: "13px",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          fontSize: "24px",
+          fontWeight: 800,
+          marginTop: "6px",
+        }}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
