@@ -34,14 +34,21 @@ export default function Login() {
           <button
             onClick={loginGoogle}
             className="btn primary"
-            style={{ width: "100%", marginTop: 12 }}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              cursor: "pointer",
+            }}
           >
             Masuk dengan Google
           </button>
 
           <button
             className="btn dark"
-            style={{ width: "100%", marginTop: 10 }}
+            style={{
+              width: "100%",
+              marginTop: 10,
+            }}
             disabled
           >
             Telegram — segera hadir
