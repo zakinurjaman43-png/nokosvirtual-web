@@ -1,61 +1,91 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
 export default function Dashboard() {
+  const [user, setUser] = useState(null);
+  const [balance, setBalance] = useState(0);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    async function syncUser() {
-      const { data, error } = await supabase.auth.getUser();
+    checkUser();
+  }, []);
 
-      if (error || !data?.user) {
-        console.error("AUTH USER ERROR:", error?.message);
-        return;
-      }
+  async function checkUser() {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-      const user = data.user;
-      const metadata = user.user_metadata || {};
-
-      const provider =
-        user.app_metadata?.provider ||
-        user.app_metadata?.providers?.[0] ||
-        "google";
-
-      const { error: syncError } = await supabase
-        .from("users")
-        .upsert(
-          {
-            auth_id: user.id,
-            email: user.email || "",
-            provider: provider,
-            telegram_id: `google:${user.id}`,
-            username:
-              metadata.user_name ||
-              metadata.preferred_username ||
-              user.email?.split("@")[0] ||
-              "-",
-            first_name:
-              metadata.full_name ||
-              metadata.name ||
-              user.email?.split("@")[0] ||
-              "Pengguna",
-            is_active: true,
-          },
-          {
-            onConflict: "auth_id",
-          }
-        );
-
-      if (syncError) {
-        console.error("USER SYNC ERROR:", syncError.message);
-      } else {
-        console.log("USER SYNC OK");
-      }
+    if (error || !user) {
+      window.location.href = "/login";
+      return;
     }
 
-    syncUser();
-  }, []);
+    setUser(user);
+
+    const googleId = `google:${user.id}`;
+
+    // Ambil data user dari Supabase
+    const { data: userData } = await supabase
+      .from("users")
+      .select("balance")
+      .eq("telegram_id", googleId)
+      .maybeSingle();
+
+    if (userData) {
+      setBalance(Number(userData.balance || 0));
+    }
+
+    // Ambil order user
+    const { data: orderData } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("telegram_id", googleId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    setOrders(orderData || []);
+    setLoading(false);
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+
+    window.location.href = "/login";
+  }
+
+  if (loading) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#070b14",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        Memuat dashboard...
+      </main>
+    );
+  }
+
+  const completedOrders = orders.filter(
+    (order) =>
+      String(order.status).toUpperCase() === "COMPLETED"
+  ).length;
+
+  const activeOrders = orders.filter(
+    (order) =>
+      ["ACTIVE", "PENDING", "WAITING", "WAITING_OTP"].includes(
+        String(order.status).toUpperCase()
+      )
+  ).length;
 
   return (
     <main
@@ -66,7 +96,12 @@ export default function Dashboard() {
         padding: "24px",
       }}
     >
-      <div style={{ maxWidth: "1200px", margin: "auto" }}>
+      <div
+        style={{
+          maxWidth: "1200px",
+          margin: "auto",
+        }}
+      >
         <nav
           style={{
             display: "flex",
@@ -83,27 +118,67 @@ export default function Dashboard() {
               color: "#5eead4",
             }}
           >
-            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
+            NOKOS{" "}
+            <span style={{ color: "#fff" }}>
+              VIRTUAL
+            </span>
           </div>
 
-          <div style={{ display: "flex", gap: "22px" }}>
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/buy">Beli Nomor</Link>
-            <Link href="/login">Keluar</Link>
+          <div
+            style={{
+              display: "flex",
+              gap: "20px",
+              alignItems: "center",
+            }}
+          >
+            <Link href="/dashboard">
+              Dashboard
+            </Link>
+
+            <Link href="/buy">
+              Beli Nomor
+            </Link>
+
+            <Link href="/orders">
+              Pesanan
+            </Link>
+
+            <button
+              onClick={logout}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#f87171",
+                cursor: "pointer",
+                fontSize: "15px",
+              }}
+            >
+              Keluar
+            </button>
           </div>
         </nav>
 
         <section style={{ marginTop: "40px" }}>
-          <p style={{ color: "#5eead4", fontWeight: 700 }}>
+          <p
+            style={{
+              color: "#5eead4",
+              fontWeight: 700,
+            }}
+          >
             DASHBOARD
           </p>
 
-          <h1 style={{ fontSize: "32px", margin: "8px 0" }}>
+          <h1
+            style={{
+              fontSize: "32px",
+              margin: "8px 0",
+            }}
+          >
             Selamat datang kembali 👋
           </h1>
 
           <p style={{ color: "#94a3b8" }}>
-            Kelola saldo, pesanan, dan nomor virtual lu di sini.
+            {user?.email || "Pengguna"}
           </p>
         </section>
 
@@ -118,22 +193,34 @@ export default function Dashboard() {
         >
           <div className="feature">
             <p>💰 Saldo</p>
-            <h2>Rp 95.000</h2>
+
+            <h2>
+              Rp {balance.toLocaleString("id-ID")}
+            </h2>
           </div>
 
           <div className="feature">
-            <p>📦 Pesanan</p>
-            <h2>14</h2>
+            <p>📦 Total Pesanan</p>
+
+            <h2>
+              {orders.length}
+            </h2>
           </div>
 
           <div className="feature">
-            <p>📱 Nomor Aktif</p>
-            <h2>2</h2>
+            <p>📱 Pesanan Aktif</p>
+
+            <h2>
+              {activeOrders}
+            </h2>
           </div>
 
           <div className="feature">
-            <p>💳 Total Deposit</p>
-            <h2>Rp 250.000</h2>
+            <p>✅ Selesai</p>
+
+            <h2>
+              {completedOrders}
+            </h2>
           </div>
         </section>
 
@@ -149,30 +236,72 @@ export default function Dashboard() {
               marginTop: "16px",
             }}
           >
-            <Link href="/buy" className="feature">
+            <Link
+              href="/buy"
+              className="feature"
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
               <h3>🛒 Beli Nomor</h3>
-              <p>Pilih negara, layanan, dan operator.</p>
+
+              <p>
+                Pilih negara, layanan, dan operator.
+              </p>
             </Link>
 
-            <div className="feature">
+            <Link
+              href="/deposit"
+              className="feature"
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
               <h3>💳 Deposit</h3>
-              <p>Tambah saldo untuk membeli nomor.</p>
-            </div>
 
-            <div className="feature">
+              <p>
+                Tambahkan saldo ke akun.
+              </p>
+            </Link>
+
+            <Link
+              href="/orders"
+              className="feature"
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
               <h3>📦 Pesanan</h3>
-              <p>Lihat semua pesanan dan status OTP.</p>
-            </div>
 
-            <div className="feature">
-              <h3>📊 Transaksi</h3>
-              <p>Lihat riwayat saldo dan pembayaran.</p>
-            </div>
+              <p>
+                Lihat pesanan dan status OTP.
+              </p>
+            </Link>
           </div>
         </section>
 
         <section style={{ marginTop: "35px" }}>
-          <h2>Pesanan Terbaru</h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <h2>Pesanan Terbaru</h2>
+
+            <Link
+              href="/orders"
+              style={{
+                color: "#5eead4",
+              }}
+            >
+              Lihat semua →
+            </Link>
+          </div>
 
           <div
             style={{
@@ -184,82 +313,86 @@ export default function Dashboard() {
               overflowX: "auto",
             }}
           >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    textAlign: "left",
-                    color: "#94a3b8",
-                  }}
-                >
-                  <th style={{ padding: "12px" }}>
-                    Layanan
-                  </th>
-                  <th style={{ padding: "12px" }}>
-                    Negara
-                  </th>
-                  <th style={{ padding: "12px" }}>
-                    Status
-                  </th>
-                  <th style={{ padding: "12px" }}>
-                    Harga
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                <tr>
-                  <td style={{ padding: "12px" }}>
-                    WhatsApp
-                  </td>
-
-                  <td style={{ padding: "12px" }}>
-                    🇮🇩 Indonesia
-                  </td>
-
-                  <td
+            {orders.length === 0 ? (
+              <div
+                style={{
+                  padding: "30px",
+                  textAlign: "center",
+                  color: "#64748b",
+                }}
+              >
+                Belum ada pesanan.
+              </div>
+            ) : (
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  minWidth: "700px",
+                }}
+              >
+                <thead>
+                  <tr
                     style={{
-                      padding: "12px",
-                      color: "#5eead4",
+                      textAlign: "left",
+                      color: "#94a3b8",
                     }}
                   >
-                    Menunggu OTP
-                  </td>
+                    <th style={{ padding: "12px" }}>
+                      Layanan
+                    </th>
 
-                  <td style={{ padding: "12px" }}>
-                    Rp 5.250
-                  </td>
-                </tr>
+                    <th style={{ padding: "12px" }}>
+                      Negara
+                    </th>
 
-                <tr>
-                  <td style={{ padding: "12px" }}>
-                    Telegram
-                  </td>
+                    <th style={{ padding: "12px" }}>
+                      Status
+                    </th>
 
-                  <td style={{ padding: "12px" }}>
-                    🇲🇾 Malaysia
-                  </td>
+                    <th style={{ padding: "12px" }}>
+                      Harga
+                    </th>
+                  </tr>
+                </thead>
 
-                  <td
-                    style={{
-                      padding: "12px",
-                      color: "#22c55e",
-                    }}
-                  >
-                    Selesai
-                  </td>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr
+                      key={order.id}
+                      style={{
+                        borderTop:
+                          "1px solid #1f2937",
+                      }}
+                    >
+                      <td style={{ padding: "12px" }}>
+                        {order.service_id || "-"}
+                      </td>
 
-                  <td style={{ padding: "12px" }}>
-                    Rp 1.750
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                      <td style={{ padding: "12px" }}>
+                        {order.country_id || "-"}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: "12px",
+                          color: "#5eead4",
+                        }}
+                      >
+                        {order.status || "-"}
+                      </td>
+
+                      <td style={{ padding: "12px" }}>
+                        Rp{" "}
+                        {Number(
+                          order.price || 0
+                        ).toLocaleString("id-ID")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
       </div>
