@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function BuyPage() {
   const [countries, setCountries] = useState([]);
@@ -10,39 +10,20 @@ export default function BuyPage() {
 
   const [country, setCountry] = useState("");
   const [service, setService] = useState("");
-  const [operator, setOperator] = useState("all");
+  const [operator, setOperator] = useState("");
 
-  const [loadingCountries, setLoadingCountries] =
-    useState(true);
-
-  const [loadingServices, setLoadingServices] =
-    useState(false);
-
-  const [loadingOperators, setLoadingOperators] =
-    useState(false);
-
-  const [loadingProducts, setLoadingProducts] =
-    useState(false);
-
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [search, setSearch] =
-    useState("");
-
-  const [buyingId, setBuyingId] =
-    useState(null);
-
-  const [buyError, setBuyError] =
-    useState("");
-
+  const [search, setSearch] = useState("");
+  const [buyingId, setBuyingId] = useState(null);
+  const [buyError, setBuyError] = useState("");
   const [successOrder, setSuccessOrder] =
     useState(null);
 
-  /*
-   * ==================================================
-   * LOAD COUNTRIES
-   * ==================================================
-   */
+  // =========================
+  // COUNTRIES
+  // =========================
 
   useEffect(() => {
     loadCountries();
@@ -50,280 +31,180 @@ export default function BuyPage() {
 
   async function loadCountries() {
     try {
-      setLoadingCountries(true);
+      setLoading(true);
       setError("");
 
       const response = await fetch(
         "/api/catalog?action=countries",
-        {
-          cache: "no-store",
-        }
+        { cache: "no-store" }
       );
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result?.error?.message ||
-            result?.error ||
-            "Gagal mengambil negara."
+          result.error || "Gagal mengambil negara."
         );
       }
 
-      setCountries(
-        result.data || []
-      );
+      setCountries(result.data || []);
     } catch (error) {
-      console.error(
-        "LOAD COUNTRIES ERROR:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Gagal mengambil negara."
-      );
+      setError(error.message);
     } finally {
-      setLoadingCountries(false);
+      setLoading(false);
     }
   }
 
-  /*
-   * ==================================================
-   * COUNTRY BERUBAH
-   * ==================================================
-   */
+  // =========================
+  // COUNTRY
+  // =========================
 
-  async function handleCountryChange(
-    value
-  ) {
+  async function changeCountry(value) {
     setCountry(value);
 
     setService("");
-    setOperator("all");
+    setOperator("");
 
     setServices([]);
     setOperators([]);
     setProducts([]);
 
-    setSearch("");
-    setBuyError("");
-    setSuccessOrder(null);
+    setError("");
 
-    if (!value) {
-      return;
-    }
+    if (!value) return;
 
-    await loadServices(value);
-  }
-
-  /*
-   * ==================================================
-   * LOAD SERVICES
-   * ==================================================
-   */
-
-  async function loadServices(
-    countryId
-  ) {
     try {
-      setLoadingServices(true);
-      setError("");
-
-      const params =
-        new URLSearchParams();
-
-      params.set(
-        "action",
-        "services"
-      );
-
-      params.set(
-        "country_id",
-        countryId
-      );
+      setLoading(true);
 
       const response = await fetch(
-        `/api/catalog?${params.toString()}`,
-        {
-          cache: "no-store",
-        }
+        `/api/catalog?action=services&country_id=${encodeURIComponent(
+          value
+        )}`,
+        { cache: "no-store" }
       );
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result?.error?.message ||
-            result?.error ||
+          result.error ||
             "Gagal mengambil service."
         );
       }
 
-      setServices(
-        result.data || []
-      );
+      setServices(result.data || []);
     } catch (error) {
-      console.error(
-        "LOAD SERVICES ERROR:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Gagal mengambil service."
-      );
+      setError(error.message);
     } finally {
-      setLoadingServices(false);
+      setLoading(false);
     }
   }
 
-  /*
-   * ==================================================
-   * SERVICE BERUBAH
-   * ==================================================
-   */
+  // =========================
+  // SERVICE
+  // =========================
 
-  async function handleServiceChange(
-    value
-  ) {
+  async function changeService(value) {
     setService(value);
 
-    setOperator("all");
-
+    setOperator("");
     setOperators([]);
     setProducts([]);
 
-    setSearch("");
-    setBuyError("");
-    setSuccessOrder(null);
+    if (!country || !value) return;
 
-    if (
-      !country ||
-      !value
-    ) {
-      return;
-    }
-
-    await loadOperators(
-      country,
-      value
-    );
-  }
-
-  /*
-   * ==================================================
-   * LOAD OPERATORS
-   * ==================================================
-   */
-
-  async function loadOperators(
-    countryId,
-    platformId
-  ) {
     try {
-      setLoadingOperators(true);
+      setLoading(true);
       setError("");
 
-      const params =
-        new URLSearchParams();
-
-      params.set(
-        "action",
-        "operators"
-      );
-
-      params.set(
-        "country_id",
-        countryId
-      );
-
-      params.set(
-        "platform_id",
-        platformId
-      );
-
       const response = await fetch(
-        `/api/catalog?${params.toString()}`,
-        {
-          cache: "no-store",
-        }
+        `/api/catalog?action=operators&country_id=${encodeURIComponent(
+          country
+        )}&platform_id=${encodeURIComponent(
+          value
+        )}`,
+        { cache: "no-store" }
       );
 
-      const result =
-        await response.json();
+      const result = await response.json();
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result?.error?.message ||
-            result?.error ||
+          result.error ||
             "Gagal mengambil operator."
         );
       }
 
-      setOperators(
-        result.data || []
+      const list = result.data || [];
+
+      setOperators(list);
+
+      /*
+       * Cari operator Any.
+       */
+      const anyOperator = list.find(
+        (item) =>
+          item.operator_id == null
       );
 
       /*
-       * Setelah service dipilih,
-       * langsung ambil produk "all operator".
+       * Cari operator nyata.
        */
-
-      await loadProducts(
-        countryId,
-        platformId,
-        "all"
+      const realOperators = list.filter(
+        (item) =>
+          item.operator_id != null
       );
+
+      /*
+       * Kalau ada Any,
+       * gunakan Semua Operator.
+       */
+      if (anyOperator) {
+        setOperator("all");
+
+        await loadProducts(
+          country,
+          value,
+          "all"
+        );
+      }
+
+      /*
+       * Kalau tidak ada Any,
+       * langsung gunakan operator pertama.
+       */
+      else if (realOperators.length > 0) {
+        const first =
+          String(
+            realOperators[0].operator_id
+          );
+
+        setOperator(first);
+
+        await loadProducts(
+          country,
+          value,
+          first
+        );
+      } else {
+        setProducts([]);
+      }
     } catch (error) {
-      console.error(
-        "LOAD OPERATORS ERROR:",
-        error
-      );
-
-      setError(
-        error?.message ||
-          "Gagal mengambil operator."
-      );
+      setError(error.message);
     } finally {
-      setLoadingOperators(false);
+      setLoading(false);
     }
   }
 
-  /*
-   * ==================================================
-   * OPERATOR BERUBAH
-   * ==================================================
-   */
+  // =========================
+  // OPERATOR
+  // =========================
 
-  async function handleOperatorChange(
-    value
-  ) {
+  async function changeOperator(value) {
     setOperator(value);
-
     setProducts([]);
 
-    setSearch("");
-    setBuyError("");
-    setSuccessOrder(null);
-
-    if (
-      !country ||
-      !service
-    ) {
-      return;
-    }
+    if (!country || !service) return;
 
     await loadProducts(
       country,
@@ -332,11 +213,9 @@ export default function BuyPage() {
     );
   }
 
-  /*
-   * ==================================================
-   * LOAD PRODUCTS
-   * ==================================================
-   */
+  // =========================
+  // PRODUCTS
+  // =========================
 
   async function loadProducts(
     countryId,
@@ -344,172 +223,85 @@ export default function BuyPage() {
     operatorId
   ) {
     try {
-      setLoadingProducts(true);
+      setLoading(true);
       setError("");
 
-      const params =
-        new URLSearchParams();
+      const url =
+        `/api/catalog?action=products` +
+        `&country_id=${encodeURIComponent(
+          countryId
+        )}` +
+        `&platform_id=${encodeURIComponent(
+          platformId
+        )}` +
+        `&operator_id=${encodeURIComponent(
+          operatorId
+        )}`;
 
-      params.set(
-        "action",
-        "products"
-      );
+      const response = await fetch(url, {
+        cache: "no-store",
+      });
 
-      params.set(
-        "country_id",
-        countryId
-      );
+      const result = await response.json();
 
-      params.set(
-        "platform_id",
-        platformId
-      );
-
-      params.set(
-        "operator_id",
-        operatorId || "all"
-      );
-
-      const response = await fetch(
-        `/api/catalog?${params.toString()}`,
-        {
-          cache: "no-store",
-        }
-      );
-
-      const result =
-        await response.json();
-
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result?.error?.message ||
-            result?.error ||
+          result.error ||
             "Gagal mengambil produk."
         );
       }
 
-      setProducts(
-        result.data || []
-      );
+      setProducts(result.data || []);
     } catch (error) {
       console.error(
-        "LOAD PRODUCTS ERROR:",
+        "PRODUCT ERROR:",
         error
       );
 
-      setError(
-        error?.message ||
-          "Gagal mengambil produk."
-      );
-
       setProducts([]);
+      setError(error.message);
     } finally {
-      setLoadingProducts(false);
+      setLoading(false);
     }
   }
 
-  /*
-   * ==================================================
-   * SEARCH
-   * ==================================================
-   */
+  // =========================
+  // BUY
+  // =========================
 
-  const filteredProducts =
-    useMemo(() => {
-      const keyword =
-        search
-          .trim()
-          .toLowerCase();
-
-      if (!keyword) {
-        return products;
-      }
-
-      return products.filter(
-        (item) => {
-          return (
-            String(
-              item.name || ""
-            )
-              .toLowerCase()
-              .includes(keyword) ||
-
-            String(
-              item.operator_name ||
-                ""
-            )
-              .toLowerCase()
-              .includes(keyword)
-          );
-        }
-      );
-    }, [
-      products,
-      search,
-    ]);
-
-  /*
-   * ==================================================
-   * BUY REAL NUMBER
-   * ==================================================
-   *
-   * STEP PURCHASE BELUM KITA UBAH.
-   *
-   * Untuk sementara tombol akan memanggil
-   * /api/orders dengan product_id.
-   *
-   * API orders akan kita perbaiki di STEP 2.
-   */
-
-  async function buyNumber(
-    product
-  ) {
+  async function buyNumber(product) {
     try {
-      setBuyingId(
-        product.id
-      );
-
+      setBuyingId(product.id);
       setBuyError("");
       setSuccessOrder(null);
 
-      const response =
-        await fetch(
-          "/api/orders",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              product_id:
-                product.id,
-              country_id:
-                product.country_id,
-              platform_id:
-                product.platform_id,
-              operator_id:
-                product.operator_id ??
-                null,
-            }),
-          }
-        );
+      const response = await fetch(
+        "/api/orders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            product_id: product.id,
+            country_id:
+              product.country_id,
+            platform_id:
+              product.platform_id,
+            operator_id:
+              product.operator_id ??
+              null,
+          }),
+        }
+      );
 
       const result =
         await response.json();
 
-      if (
-        !response.ok ||
-        !result.success
-      ) {
+      if (!response.ok || !result.success) {
         throw new Error(
-          result?.error?.message ||
-            result?.error ||
+          result.error ||
             "Gagal membeli nomor."
         );
       }
@@ -519,24 +311,44 @@ export default function BuyPage() {
       );
     } catch (error) {
       console.error(
-        "BUY NUMBER ERROR:",
+        "BUY ERROR:",
         error
       );
 
       setBuyError(
-        error?.message ||
-          "Gagal membeli nomor."
+        error.message
       );
     } finally {
       setBuyingId(null);
     }
   }
 
-  /*
-   * ==================================================
-   * RENDER
-   * ==================================================
-   */
+  // =========================
+  // FILTER SEARCH
+  // =========================
+
+  const filteredProducts =
+    products.filter((item) => {
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!keyword) return true;
+
+      return (
+        String(
+          item.name || ""
+        )
+          .toLowerCase()
+          .includes(keyword) ||
+        String(
+          item.operator_name || ""
+        )
+          .toLowerCase()
+          .includes(keyword)
+      );
+    });
 
   return (
     <main
@@ -544,252 +356,189 @@ export default function BuyPage() {
         minHeight: "100vh",
         background: "#070b14",
         color: "#fff",
-        padding: "24px",
+        padding: "30px",
       }}
     >
       <div
         style={{
           maxWidth: "1200px",
-          margin: "0 auto",
+          margin: "auto",
         }}
       >
-        <h1
-          style={{
-            marginBottom: "8px",
-          }}
-        >
-          Beli Nomor
+        <h1>
+          Pilih Nomor Virtual
         </h1>
 
         <p
           style={{
             color: "#94a3b8",
-            marginTop: 0,
           }}
         >
-          Catalog langsung dari SMSCode.
+          Pilih layanan, negara dan
+          operator yang tersedia.
         </p>
-
-        {/* ERROR */}
 
         {error && (
           <div
             style={{
-              marginTop: "20px",
-              padding: "14px",
-              borderRadius: "10px",
+              marginTop: 20,
+              padding: 15,
               background: "#3f1d2e",
               color: "#fda4af",
+              borderRadius: 10,
             }}
           >
             {error}
           </div>
         )}
 
-        {/* FILTER */}
-
-        <section
+        <div
           style={{
-            marginTop: "25px",
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "14px",
+              "repeat(auto-fit,minmax(220px,1fr))",
+            gap: 15,
+            marginTop: 25,
           }}
         >
-          {/* COUNTRY */}
-
           <div>
-            <label
-              style={labelStyle}
-            >
-              Negara
-            </label>
+            <label>Negara</label>
 
             <select
               value={country}
-              onChange={(event) =>
-                handleCountryChange(
-                  event.target.value
+              onChange={(e) =>
+                changeCountry(
+                  e.target.value
                 )
               }
               style={selectStyle}
-              disabled={
-                loadingCountries
-              }
             >
               <option value="">
-                {loadingCountries
-                  ? "Memuat negara..."
-                  : "Pilih negara"}
+                Pilih Negara
               </option>
 
-              {countries.map(
-                (item) => (
-                  <option
-                    key={item.id}
-                    value={item.id}
-                  >
-                    {item.emoji || ""}{" "}
-                    {item.name}
-                  </option>
-                )
-              )}
+              {countries.map((item) => (
+                <option
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.emoji || ""}{" "}
+                  {item.name}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* SERVICE */}
-
           <div>
-            <label
-              style={labelStyle}
-            >
-              Service
-            </label>
+            <label>Service</label>
 
             <select
               value={service}
-              onChange={(event) =>
-                handleServiceChange(
-                  event.target.value
+              onChange={(e) =>
+                changeService(
+                  e.target.value
                 )
               }
+              disabled={!country}
               style={selectStyle}
-              disabled={
-                !country ||
-                loadingServices
-              }
             >
               <option value="">
-                {loadingServices
-                  ? "Memuat service..."
-                  : "Pilih service"}
+                Pilih Service
               </option>
 
-              {services.map(
-                (item) => (
-                  <option
-                    key={item.id}
-                    value={item.id}
-                  >
-                    {item.name}
-                  </option>
-                )
-              )}
+              {services.map((item) => (
+                <option
+                  key={item.id}
+                  value={item.id}
+                >
+                  {item.name}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* OPERATOR */}
-
           <div>
-            <label
-              style={labelStyle}
-            >
-              Operator
-            </label>
+            <label>Operator</label>
 
             <select
               value={operator}
-              onChange={(event) =>
-                handleOperatorChange(
-                  event.target.value
+              onChange={(e) =>
+                changeOperator(
+                  e.target.value
                 )
               }
+              disabled={!service}
               style={selectStyle}
-              disabled={
-                !service ||
-                loadingOperators
-              }
             >
-              <option value="all">
-                {loadingOperators
-                  ? "Memuat operator..."
-                  : "Semua Operator"}
+              <option value="">
+                Pilih Operator
               </option>
 
-              {operators
-                .filter(
-                  (item) =>
-                    item.id != null
-                )
-                .map(
-                  (item) => (
-                    <option
-                      key={item.id}
-                      value={item.id}
-                    >
-                      {item.display_name ||
-                        item.name ||
-                        item.operator_name ||
-                        `Operator ${item.id}`}
-                    </option>
-                  )
-                )}
+              {operators.map((item) => (
+                <option
+                  key={
+                    item.operator_id ??
+                    "any"
+                  }
+                  value={
+                    item.operator_id ??
+                    "all"
+                  }
+                >
+                  {item.display_name ||
+                    item.name ||
+                    item.local_name ||
+                    "Semua Operator"}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* SEARCH */}
-
           <div>
-            <label
-              style={labelStyle}
-            >
-              Cari
-            </label>
+            <label>Cari</label>
 
             <input
               value={search}
-              onChange={(event) =>
+              onChange={(e) =>
                 setSearch(
-                  event.target.value
+                  e.target.value
                 )
               }
               placeholder="Cari produk..."
               style={inputStyle}
-              disabled={
-                products.length === 0
-              }
             />
           </div>
-        </section>
-
-        {/* BUY ERROR */}
+        </div>
 
         {buyError && (
           <div
             style={{
-              marginTop: "20px",
-              padding: "14px",
-              borderRadius: "10px",
+              marginTop: 20,
+              padding: 15,
               background: "#3f1d2e",
               color: "#fda4af",
+              borderRadius: 10,
             }}
           >
             {buyError}
           </div>
         )}
 
-        {/* SUCCESS */}
-
         {successOrder && (
           <div
             style={{
-              marginTop: "20px",
-              padding: "18px",
-              borderRadius: "12px",
+              marginTop: 20,
+              padding: 18,
               background: "#14532d",
               color: "#86efac",
+              borderRadius: 12,
             }}
           >
             <strong>
               Nomor berhasil dibeli.
             </strong>
 
-            <div
-              style={{
-                marginTop: "8px",
-              }}
-            >
+            <div>
               Nomor:{" "}
               {successOrder.phone_number ||
                 "-"}
@@ -803,322 +552,197 @@ export default function BuyPage() {
           </div>
         )}
 
-        {/* PRODUCTS */}
-
-        <section
+        <div
           style={{
-            marginTop: "30px",
+            marginTop: 30,
           }}
         >
-          {!country ||
-          !service ? (
+          {loading ? (
             <div
               style={{
-                padding: "40px",
+                padding: 40,
                 textAlign: "center",
-                background: "#111827",
-                borderRadius: "14px",
+              }}
+            >
+              Mengambil data
+              SMSCode...
+            </div>
+          ) : !country ||
+            !service ? (
+            <div
+              style={{
+                padding: 40,
+                textAlign: "center",
                 color: "#94a3b8",
               }}
             >
               Pilih negara dan service
-              untuk melihat nomor.
+              terlebih dahulu.
             </div>
-          ) : loadingProducts ? (
+          ) : filteredProducts.length ===
+            0 ? (
             <div
               style={{
-                padding: "40px",
+                padding: 40,
                 textAlign: "center",
-                background: "#111827",
-                borderRadius: "14px",
                 color: "#94a3b8",
               }}
             >
-              Mengambil produk
-              langsung dari SMSCode...
+              Nomor tidak ditemukan.
             </div>
           ) : (
-            <>
-              <div
-                style={{
-                  marginBottom: "15px",
-                  color: "#94a3b8",
-                }}
-              >
-                Menampilkan{" "}
-                <strong
-                  style={{
-                    color: "#fff",
-                  }}
-                >
-                  {
-                    filteredProducts.length
-                  }
-                </strong>{" "}
-                produk
-              </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fill,minmax(250px,1fr))",
+                gap: 15,
+              }}
+            >
+              {filteredProducts.map(
+                (product) => {
+                  const stock =
+                    Number(
+                      product.available ??
+                        product.stock ??
+                        0
+                    );
 
-              {filteredProducts.length ===
-              0 ? (
-                <div
-                  style={{
-                    padding: "40px",
-                    textAlign: "center",
-                    background:
-                      "#111827",
-                    borderRadius:
-                      "14px",
-                    color:
-                      "#94a3b8",
-                  }}
-                >
-                  Produk tidak
-                  tersedia untuk
-                  kombinasi ini.
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fill, minmax(250px, 1fr))",
-                    gap: "15px",
-                  }}
-                >
-                  {filteredProducts.map(
-                    (product) => {
-                      const stock =
-                        Number(
-                          product.available ??
-                            product.stock ??
-                            0
-                        );
+                  const buying =
+                    buyingId ===
+                    product.id;
 
-                      const isBuying =
-                        buyingId ===
-                        product.id;
+                  return (
+                    <div
+                      key={product.id}
+                      style={{
+                        background:
+                          "#111827",
+                        border:
+                          "1px solid #1f2937",
+                        borderRadius: 14,
+                        padding: 18,
+                      }}
+                    >
+                      <strong>
+                        {product.name ||
+                          `Product ${product.id}`}
+                      </strong>
 
-                      return (
-                        <div
-                          key={
-                            product.id
-                          }
-                          style={{
-                            background:
-                              "#111827",
-                            border:
-                              "1px solid #1f2937",
-                            borderRadius:
-                              "14px",
-                            padding:
-                              "18px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display:
-                                "flex",
-                              justifyContent:
-                                "space-between",
-                              gap: "10px",
-                            }}
-                          >
-                            <strong>
-                              {product.name ||
-                                `Product ${product.id}`}
-                            </strong>
+                      <div
+                        style={{
+                          marginTop: 10,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        Operator:{" "}
+                        {
+                          product.operator_name
+                        }
+                      </div>
 
-                            <span
-                              style={{
-                                color:
-                                  stock >
-                                  0
-                                    ? "#5eead4"
-                                    : "#f87171",
-                                fontSize:
-                                  "13px",
-                              }}
-                            >
-                              Stock{" "}
-                              {stock}
-                            </span>
-                          </div>
+                      <div
+                        style={{
+                          marginTop: 10,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        Stock: {stock}
+                      </div>
 
-                          <div
-                            style={{
-                              marginTop:
-                                "14px",
-                              color:
-                                "#94a3b8",
-                              fontSize:
-                                "14px",
-                            }}
-                          >
-                            {product.country_emoji ||
-                              ""}{" "}
-                            {
-                              product.country_name
-                            }
-                          </div>
+                      <div
+                        style={{
+                          marginTop: 15,
+                          fontSize: 22,
+                          fontWeight: 800,
+                        }}
+                      >
+                        Rp{" "}
+                        {Number(
+                          product.selling_price
+                        ).toLocaleString(
+                          "id-ID"
+                        )}
+                      </div>
 
-                          <div
-                            style={{
-                              marginTop:
-                                "8px",
-                              color:
-                                "#94a3b8",
-                              fontSize:
-                                "14px",
-                            }}
-                          >
-                            Service:{" "}
-                            {
-                              product.service_name
-                            }
-                          </div>
+                      <div
+                        style={{
+                          marginTop: 5,
+                          color: "#64748b",
+                          fontSize: 12,
+                        }}
+                      >
+                        Supplier Rp{" "}
+                        {Number(
+                          product.supplier_price
+                        ).toLocaleString(
+                          "id-ID"
+                        )}
+                      </div>
 
-                          <div
-                            style={{
-                              marginTop:
-                                "8px",
-                              color:
-                                "#94a3b8",
-                              fontSize:
-                                "14px",
-                            }}
-                          >
-                            Operator:{" "}
-                            {
-                              product.operator_name
-                            }
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop:
-                                "18px",
-                              fontSize:
-                                "22px",
-                              fontWeight:
-                                800,
-                            }}
-                          >
-                            Rp{" "}
-                            {Number(
-                              product.selling_price ||
-                                0
-                            ).toLocaleString(
-                              "id-ID"
-                            )}
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop:
-                                "4px",
-                              color:
-                                "#64748b",
-                              fontSize:
-                                "12px",
-                            }}
-                          >
-                            Supplier: Rp{" "}
-                            {Number(
-                              product.supplier_price ||
-                                0
-                            ).toLocaleString(
-                              "id-ID"
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={
-                              stock <= 0 ||
-                              isBuying
-                            }
-                            onClick={() =>
-                              buyNumber(
-                                product
-                              )
-                            }
-                            style={{
-                              width:
-                                "100%",
-                              marginTop:
-                                "16px",
-                              padding:
-                                "12px",
-                              border:
-                                "none",
-                              borderRadius:
-                                "10px",
-                              background:
-                                stock <=
-                                0
-                                  ? "#374151"
-                                  : "#5eead4",
-                              color:
-                                stock <=
-                                0
-                                  ? "#9ca3af"
-                                  : "#06111a",
-                              fontWeight:
-                                800,
-                              cursor:
-                                stock <=
-                                  0 ||
-                                isBuying
-                                  ? "not-allowed"
-                                  : "pointer",
-                            }}
-                          >
-                            {isBuying
-                              ? "Membeli..."
-                              : stock <=
-                                0
-                              ? "Stock Habis"
-                              : "Beli Nomor"}
-                          </button>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
+                      <button
+                        type="button"
+                        disabled={
+                          stock <= 0 ||
+                          buying
+                        }
+                        onClick={() =>
+                          buyNumber(
+                            product
+                          )
+                        }
+                        style={{
+                          width: "100%",
+                          marginTop: 15,
+                          padding: 12,
+                          border: "none",
+                          borderRadius: 10,
+                          background:
+                            stock > 0
+                              ? "#5eead4"
+                              : "#374151",
+                          color:
+                            stock > 0
+                              ? "#06111a"
+                              : "#9ca3af",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {buying
+                          ? "Membeli..."
+                          : stock > 0
+                          ? "Beli Nomor"
+                          : "Stock Habis"}
+                      </button>
+                    </div>
+                  );
+                }
               )}
-            </>
+            </div>
           )}
-        </section>
+        </div>
       </div>
     </main>
   );
 }
 
-const labelStyle = {
-  display: "block",
-  marginBottom: "7px",
-  color: "#cbd5e1",
-  fontSize: "14px",
-  fontWeight: 700,
-};
-
 const selectStyle = {
   width: "100%",
-  padding: "13px",
-  borderRadius: "10px",
+  marginTop: 7,
+  padding: 13,
+  borderRadius: 10,
   border: "1px solid #374151",
   background: "#070b14",
   color: "#fff",
-  fontSize: "15px",
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "13px",
-  borderRadius: "10px",
+  boxSizing: "border-box",
+  marginTop: 7,
+  padding: 13,
+  borderRadius: 10,
   border: "1px solid #374151",
   background: "#070b14",
   color: "#fff",
-  fontSize: "15px",
-  boxSizing: "border-box",
 };
