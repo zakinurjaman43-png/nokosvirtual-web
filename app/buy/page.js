@@ -15,48 +15,36 @@ export default function BuyPage() {
   const [operator, setOperator] = useState("all");
   const [search, setSearch] = useState("");
 
+  // STATUS PEMBELIAN
+  const [buyingId, setBuyingId] = useState(null);
+  const [buyError, setBuyError] = useState("");
+  const [successOrder, setSuccessOrder] = useState(null);
+
   useEffect(() => {
     async function loadCatalog() {
       try {
         setLoading(true);
         setError("");
 
-        const response = await fetch(
-          "/api/catalog",
-          {
-            cache: "no-store",
-          }
-        );
+        const response = await fetch("/api/catalog", {
+          cache: "no-store",
+        });
 
-        const result =
-          await response.json();
+        const result = await response.json();
 
-        if (
-          !response.ok ||
-          !result.success
-        ) {
+        if (!response.ok || !result.success) {
           throw new Error(
             result?.error?.message ||
+              result?.error ||
               "Gagal mengambil katalog"
           );
         }
 
-        setProducts(
-          result.data || []
-        );
-
-        setCountries(
-          result.countries || []
-        );
-
-        setServices(
-          result.services || []
-        );
+        setProducts(result.data || []);
+        setCountries(result.countries || []);
+        setServices(result.services || []);
       } catch (err) {
-        console.error(
-          "CATALOG LOAD ERROR:",
-          err
-        );
+        console.error("CATALOG LOAD ERROR:", err);
 
         setError(
           err.message ||
@@ -74,9 +62,7 @@ export default function BuyPage() {
     const map = new Map();
 
     products.forEach((item) => {
-      const id =
-        item.operator_id ??
-        "any";
+      const id = item.operator_id ?? "any";
 
       const name =
         item.operator_display ||
@@ -84,99 +70,123 @@ export default function BuyPage() {
         "Semua Operator";
 
       if (!map.has(String(id))) {
-        map.set(
-          String(id),
-          name
-        );
+        map.set(String(id), name);
       }
     });
 
-    return Array.from(
-      map.entries()
-    );
+    return Array.from(map.entries());
   }, [products]);
 
-  const filteredProducts =
-    useMemo(() => {
-      return products.filter(
-        (item) => {
-          const serviceMatch =
-            service === "all" ||
-            String(
-              item.platform_id
-            ) ===
-              String(service);
+  const filteredProducts = useMemo(() => {
+    return products.filter((item) => {
+      const serviceMatch =
+        service === "all" ||
+        String(item.platform_id) ===
+          String(service);
 
-          const countryMatch =
-            country === "all" ||
-            String(
-              item.country_id
-            ) ===
-              String(country);
+      const countryMatch =
+        country === "all" ||
+        String(item.country_id) ===
+          String(country);
 
-          const operatorMatch =
-            operator === "all" ||
-            String(
-              item.operator_id ??
-                "any"
-            ) ===
-              String(operator);
+      const operatorMatch =
+        operator === "all" ||
+        String(item.operator_id ?? "any") ===
+          String(operator);
 
-          const searchText =
-            search
-              .toLowerCase()
-              .trim();
+      const searchText =
+        search.toLowerCase().trim();
 
-          const searchMatch =
-            !searchText ||
-            String(
-              item.name || ""
-            )
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            String(
-              item.service_name ||
-                ""
-            )
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            String(
-              item.country_name ||
-                ""
-            )
-              .toLowerCase()
-              .includes(
-                searchText
-              ) ||
-            String(
-              item.operator_display ||
-                item.operator_name ||
-                ""
-            )
-              .toLowerCase()
-              .includes(
-                searchText
-              );
+      const searchMatch =
+        !searchText ||
+        String(item.name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(item.service_name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(item.country_name || "")
+          .toLowerCase()
+          .includes(searchText) ||
+        String(
+          item.operator_display ||
+            item.operator_name ||
+            ""
+        )
+          .toLowerCase()
+          .includes(searchText);
 
-          return (
-            serviceMatch &&
-            countryMatch &&
-            operatorMatch &&
-            searchMatch
-          );
+      return (
+        serviceMatch &&
+        countryMatch &&
+        operatorMatch &&
+        searchMatch
+      );
+    });
+  }, [
+    products,
+    service,
+    country,
+    operator,
+    search,
+  ]);
+
+  // ==========================================
+  // BELI NOMOR
+  // ==========================================
+
+  async function buyNumber(item) {
+    try {
+      setBuyingId(item.id);
+      setBuyError("");
+      setSuccessOrder(null);
+
+      const response = await fetch(
+        "/api/orders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            product_id: item.id,
+          }),
         }
       );
-    }, [
-      products,
-      service,
-      country,
-      operator,
-      search,
-    ]);
+
+      const result = await response.json();
+
+      if (
+        !response.ok ||
+        !result.success
+      ) {
+        throw new Error(
+          result?.error ||
+            result?.message ||
+            "Gagal membeli nomor."
+        );
+      }
+
+      setSuccessOrder(result.order || null);
+    } catch (error) {
+      console.error(
+        "BUY NUMBER ERROR:",
+        error
+      );
+
+      setBuyError(
+        error.message ||
+          "Gagal membeli nomor."
+      );
+    } finally {
+      setBuyingId(null);
+    }
+  }
+
+  function closePurchaseMessage() {
+    setBuyError("");
+    setSuccessOrder(null);
+  }
 
   return (
     <main
@@ -199,12 +209,9 @@ export default function BuyPage() {
         <nav
           style={{
             display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems:
-              "center",
-            paddingBottom:
-              "20px",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: "20px",
             borderBottom:
               "1px solid #1f2937",
           }}
@@ -229,10 +236,8 @@ export default function BuyPage() {
           <a
             href="/dashboard"
             style={{
-              color:
-                "#94a3b8",
-              textDecoration:
-                "none",
+              color: "#94a3b8",
+              textDecoration: "none",
             }}
           >
             ← Dashboard
@@ -248,11 +253,9 @@ export default function BuyPage() {
         >
           <p
             style={{
-              color:
-                "#5eead4",
+              color: "#5eead4",
               fontWeight: 700,
-              marginBottom:
-                "8px",
+              marginBottom: "8px",
             }}
           >
             BELI NOMOR
@@ -260,10 +263,8 @@ export default function BuyPage() {
 
           <h1
             style={{
-              fontSize:
-                "32px",
-              margin:
-                "8px 0",
+              fontSize: "32px",
+              margin: "8px 0",
             }}
           >
             Pilih Nomor Virtual
@@ -271,33 +272,173 @@ export default function BuyPage() {
 
           <p
             style={{
-              color:
-                "#94a3b8",
+              color: "#94a3b8",
             }}
           >
-            Pilih layanan,
-            negara dan
-            operator yang
-            tersedia.
+            Pilih layanan, negara dan
+            operator yang tersedia.
           </p>
         </section>
+
+        {/* SUCCESS */}
+
+        {successOrder && (
+          <section
+            style={{
+              marginTop: "20px",
+              padding: "20px",
+              background: "#052e2b",
+              border:
+                "1px solid #14b8a6",
+              borderRadius: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                gap: "20px",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin:
+                      "0 0 10px",
+                    color: "#5eead4",
+                  }}
+                >
+                  ✅ Nomor berhasil dibeli
+                </h3>
+
+                <p
+                  style={{
+                    margin: "5px 0",
+                    color: "#cbd5e1",
+                  }}
+                >
+                  Order: #
+                  {successOrder.id || "-"}
+                </p>
+
+                <p
+                  style={{
+                    margin: "5px 0",
+                    color: "#cbd5e1",
+                  }}
+                >
+                  Nomor:{" "}
+                  <strong>
+                    {successOrder.phone_number ||
+                      "-"}
+                  </strong>
+                </p>
+
+                <p
+                  style={{
+                    margin: "5px 0",
+                    color: "#cbd5e1",
+                  }}
+                >
+                  Status:{" "}
+                  <strong>
+                    {successOrder.status ||
+                      "CREATING"}
+                  </strong>
+                </p>
+
+                {successOrder.otp_code && (
+                  <p
+                    style={{
+                      margin: "5px 0",
+                      color: "#cbd5e1",
+                    }}
+                  >
+                    OTP:{" "}
+                    <strong>
+                      {
+                        successOrder.otp_code
+                      }
+                    </strong>
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closePurchaseMessage
+                }
+                style={{
+                  height: "36px",
+                  padding: "0 12px",
+                  border: "none",
+                  borderRadius: "8px",
+                  background: "#134e4a",
+                  color: "#99f6e4",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                }}
+              >
+                Tutup
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ERROR BELI */}
+
+        {buyError && (
+          <section
+            style={{
+              marginTop: "20px",
+              padding: "16px 20px",
+              background: "#3f1720",
+              border:
+                "1px solid #ef4444",
+              borderRadius: "16px",
+              color: "#fca5a5",
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+              gap: "15px",
+            }}
+          >
+            <span>
+              ❌ {buyError}
+            </span>
+
+            <button
+              type="button"
+              onClick={
+                closePurchaseMessage
+              }
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#fca5a5",
+                cursor: "pointer",
+                fontSize: "18px",
+              }}
+            >
+              ✕
+            </button>
+          </section>
+        )}
 
         {/* FILTER */}
 
         <section
           style={{
-            marginTop:
-              "30px",
-            padding:
-              "20px",
-            background:
-              "#111827",
+            marginTop: "30px",
+            padding: "20px",
+            background: "#111827",
             border:
               "1px solid #1f2937",
-            borderRadius:
-              "16px",
-            display:
-              "grid",
+            borderRadius: "16px",
+            display: "grid",
             gridTemplateColumns:
               "repeat(auto-fit, minmax(200px, 1fr))",
             gap: "12px",
@@ -306,82 +447,61 @@ export default function BuyPage() {
           <input
             value={search}
             onChange={(e) =>
-              setSearch(
-                e.target.value
-              )
+              setSearch(e.target.value)
             }
             placeholder="🔎 Cari layanan..."
-            style={
-              inputStyle
-            }
+            style={inputStyle}
           />
 
           <select
             value={service}
             onChange={(e) =>
-              setService(
-                e.target.value
-              )
+              setService(e.target.value)
             }
-            style={
-              selectStyle
-            }
+            style={selectStyle}
           >
             <option value="all">
               Semua Layanan
             </option>
 
-            {services.map(
-              (item) => (
-                <option
-                  key={item.id}
-                  value={item.id}
-                >
-                  {item.name}
-                </option>
-              )
-            )}
+            {services.map((item) => (
+              <option
+                key={item.id}
+                value={item.id}
+              >
+                {item.name}
+              </option>
+            ))}
           </select>
 
           <select
             value={country}
             onChange={(e) =>
-              setCountry(
-                e.target.value
-              )
+              setCountry(e.target.value)
             }
-            style={
-              selectStyle
-            }
+            style={selectStyle}
           >
             <option value="all">
               Semua Negara
             </option>
 
-            {countries.map(
-              (item) => (
-                <option
-                  key={item.id}
-                  value={item.id}
-                >
-                  {item.emoji ||
-                    "🌎"}{" "}
-                  {item.name}
-                </option>
-              )
-            )}
+            {countries.map((item) => (
+              <option
+                key={item.id}
+                value={item.id}
+              >
+                {item.emoji || "🌎"}{" "}
+                {item.name}
+              </option>
+            ))}
           </select>
 
           <select
             value={operator}
             onChange={(e) =>
-              setOperator(
-                e.target.value
-              )
+              setOperator(e.target.value)
             }
-            style={
-              selectStyle
-            }
+            style={selectStyle}
           >
             <option value="all">
               Semua Operator
@@ -404,39 +524,31 @@ export default function BuyPage() {
 
         <div
           style={{
-            marginTop:
-              "25px",
-            color:
-              "#94a3b8",
+            marginTop: "25px",
+            color: "#94a3b8",
           }}
         >
-          {loading && (
-            "Memuat katalog..."
-          )}
+          {loading &&
+            "Memuat katalog..."}
 
-          {!loading &&
-            !error && (
-              <>
-                Menampilkan{" "}
-                <strong
-                  style={{
-                    color:
-                      "#fff",
-                  }}
-                >
-                  {
-                    filteredProducts.length
-                  }
-                </strong>{" "}
-                nomor
-              </>
-            )}
+          {!loading && !error && (
+            <>
+              Menampilkan{" "}
+              <strong
+                style={{
+                  color: "#fff",
+                }}
+              >
+                {filteredProducts.length}
+              </strong>{" "}
+              nomor
+            </>
+          )}
 
           {error && (
             <span
               style={{
-                color:
-                  "#f87171",
+                color: "#f87171",
               }}
             >
               {error}
@@ -446,51 +558,51 @@ export default function BuyPage() {
 
         {/* PRODUCTS */}
 
-        {!loading &&
-          !error && (
-            <section
-              style={{
-                marginTop:
-                  "16px",
-                display:
-                  "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fill, minmax(270px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              {filteredProducts.map(
-                (item) => (
+        {!loading && !error && (
+          <section
+            style={{
+              marginTop: "16px",
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(270px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {filteredProducts.map(
+              (item) => {
+                const stock =
+                  Number(
+                    item.available || 0
+                  );
+
+                const isBuying =
+                  buyingId === item.id;
+
+                return (
                   <div
                     key={item.id}
                     style={{
-                      background:
-                        "#111827",
+                      background: "#111827",
                       border:
                         "1px solid #1f2937",
-                      borderRadius:
-                        "16px",
-                      padding:
-                        "20px",
+                      borderRadius: "16px",
+                      padding: "20px",
                     }}
                   >
                     {/* SERVICE + STOCK */}
 
                     <div
                       style={{
-                        display:
-                          "flex",
+                        display: "flex",
                         justifyContent:
                           "space-between",
-                        gap:
-                          "10px",
+                        gap: "10px",
                       }}
                     >
                       <h2
                         style={{
                           margin: 0,
-                          fontSize:
-                            "18px",
+                          fontSize: "18px",
                         }}
                       >
                         {
@@ -500,19 +612,13 @@ export default function BuyPage() {
 
                       <span
                         style={{
-                          color:
-                            "#5eead4",
-                          fontSize:
-                            "13px",
+                          color: "#5eead4",
+                          fontSize: "13px",
                           whiteSpace:
                             "nowrap",
                         }}
                       >
-                        Stock{" "}
-                        {
-                          item.available ??
-                          0
-                        }
+                        Stock {stock}
                       </span>
                     </div>
 
@@ -520,10 +626,8 @@ export default function BuyPage() {
 
                     <p
                       style={{
-                        color:
-                          "#cbd5e1",
-                        marginTop:
-                          "16px",
+                        color: "#cbd5e1",
+                        marginTop: "16px",
                       }}
                     >
                       {
@@ -538,8 +642,7 @@ export default function BuyPage() {
 
                     <p
                       style={{
-                        color:
-                          "#94a3b8",
+                        color: "#94a3b8",
                       }}
                     >
                       📡{" "}
@@ -552,20 +655,17 @@ export default function BuyPage() {
 
                     <p
                       style={{
-                        color:
-                          "#94a3b8",
+                        color: "#94a3b8",
                       }}
                     >
-                      📱{" "}
-                      {item.name}
+                      📱 {item.name}
                     </p>
 
                     {/* PRICE */}
 
                     <h2
                       style={{
-                        marginTop:
-                          "20px",
+                        marginTop: "20px",
                       }}
                     >
                       Rp{" "}
@@ -581,34 +681,49 @@ export default function BuyPage() {
 
                     <button
                       type="button"
+                      disabled={
+                        isBuying ||
+                        stock <= 0
+                      }
+                      onClick={() =>
+                        buyNumber(item)
+                      }
                       style={{
-                        width:
-                          "100%",
-                        marginTop:
-                          "10px",
-                        padding:
-                          "12px",
-                        border:
-                          "none",
-                        borderRadius:
-                          "10px",
+                        width: "100%",
+                        marginTop: "10px",
+                        padding: "12px",
+                        border: "none",
+                        borderRadius: "10px",
                         background:
-                          "#5eead4",
+                          stock <= 0
+                            ? "#374151"
+                            : isBuying
+                            ? "#0f766e"
+                            : "#5eead4",
                         color:
-                          "#06111a",
-                        fontWeight:
-                          800,
+                          stock <= 0
+                            ? "#9ca3af"
+                            : "#06111a",
+                        fontWeight: 800,
                         cursor:
-                          "pointer",
+                          isBuying ||
+                          stock <= 0
+                            ? "not-allowed"
+                            : "pointer",
                       }}
                     >
-                      Beli Nomor
+                      {isBuying
+                        ? "⏳ Membeli..."
+                        : stock <= 0
+                        ? "Stock Habis"
+                        : "Beli Nomor"}
                     </button>
                   </div>
-                )
-              )}
-            </section>
-          )}
+                );
+              }
+            )}
+          </section>
+        )}
 
         {/* EMPTY */}
 
@@ -618,22 +733,15 @@ export default function BuyPage() {
             0 && (
             <div
               style={{
-                marginTop:
-                  "30px",
-                padding:
-                  "30px",
-                textAlign:
-                  "center",
-                background:
-                  "#111827",
-                borderRadius:
-                  "16px",
-                color:
-                  "#94a3b8",
+                marginTop: "30px",
+                padding: "30px",
+                textAlign: "center",
+                background: "#111827",
+                borderRadius: "16px",
+                color: "#94a3b8",
               }}
             >
-              Nomor tidak
-              ditemukan.
+              Nomor tidak ditemukan.
             </div>
           )}
       </div>
@@ -645,10 +753,8 @@ const selectStyle = {
   width: "100%",
   padding: "13px",
   borderRadius: "10px",
-  border:
-    "1px solid #374151",
-  background:
-    "#070b14",
+  border: "1px solid #374151",
+  background: "#070b14",
   color: "#fff",
   fontSize: "15px",
 };
@@ -657,12 +763,9 @@ const inputStyle = {
   width: "100%",
   padding: "13px",
   borderRadius: "10px",
-  border:
-    "1px solid #374151",
-  background:
-    "#070b14",
+  border: "1px solid #374151",
+  background: "#070b14",
   color: "#fff",
   fontSize: "15px",
-  boxSizing:
-    "border-box",
+  boxSizing: "border-box",
 };
