@@ -19,11 +19,7 @@ export async function middleware(request) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(
             ({ name, value, options }) => {
-              request.cookies.set(
-                name,
-                value,
-                options
-              );
+              request.cookies.set(name, value, options);
             }
           );
 
@@ -33,13 +29,9 @@ export async function middleware(request) {
 
           cookiesToSet.forEach(
             ({ name, value, options }) => {
-              response.cookies.set(
-                name,
-                value,
-                options
-              );
+              response.cookies.set(name, value, options);
             }
-          });
+          );
         },
       },
     }
@@ -49,25 +41,24 @@ export async function middleware(request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const adminEmails =
-    process.env.ADMIN_EMAILS
-      ?.split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean) || [];
+  const pathname = request.nextUrl.pathname;
 
-  const userEmail =
-    user?.email?.trim().toLowerCase();
-
-  // Hanya proteksi halaman /admin
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    // Belum login
+  if (pathname.startsWith("/admin")) {
     if (!user) {
       return NextResponse.redirect(
         new URL("/login", request.url)
       );
     }
 
-    // Sudah login tapi bukan admin
+    const adminEmails =
+      process.env.ADMIN_EMAILS
+        ?.split(",")
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean) || [];
+
+    const userEmail =
+      user.email?.trim().toLowerCase();
+
     if (
       !userEmail ||
       !adminEmails.includes(userEmail)
