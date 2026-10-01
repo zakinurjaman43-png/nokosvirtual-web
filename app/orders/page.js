@@ -14,30 +14,49 @@ export default function OrdersPage() {
   }, []);
 
   async function loadOrders() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      window.location.href = "/login";
-      return;
+      if (!user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      /*
+       * USER WEB DISIMPAN DENGAN FORMAT:
+       * web:${user.id}
+       *
+       * BUKAN:
+       * google:${user.id}
+       */
+      const webId = `web:${user.id}`;
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("telegram_id", webId)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error(
+          "LOAD ORDERS ERROR:",
+          error
+        );
+      } else {
+        setOrders(data || []);
+      }
+    } catch (error) {
+      console.error(
+        "ORDERS ERROR:",
+        error
+      );
+    } finally {
+      setLoading(false);
     }
-
-    const googleId = `google:${user.id}`;
-
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("telegram_id", googleId)
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (!error) {
-      setOrders(data || []);
-    }
-
-    setLoading(false);
   }
 
   async function logout() {
@@ -55,12 +74,18 @@ export default function OrdersPage() {
         );
 
   function statusStyle(status) {
-    const value = String(status || "").toUpperCase();
+    const value = String(
+      status || ""
+    ).toUpperCase();
 
     if (
-      ["ACTIVE", "PENDING", "WAITING", "WAITING_OTP"].includes(
-        value
-      )
+      [
+        "ACTIVE",
+        "PENDING",
+        "WAITING",
+        "WAITING_OTP",
+        "CREATING",
+      ].includes(value)
     ) {
       return {
         background: "#164e63",
@@ -68,16 +93,37 @@ export default function OrdersPage() {
       };
     }
 
-    if (value === "COMPLETED") {
+    if (
+      [
+        "COMPLETED",
+        "SUCCESS",
+        "FINISHED",
+      ].includes(value)
+    ) {
       return {
         background: "#14532d",
         color: "#86efac",
       };
     }
 
+    if (
+      [
+        "EXPIRED",
+        "CANCELED",
+        "CANCELLED",
+        "REFUNDED",
+        "FAILED",
+      ].includes(value)
+    ) {
+      return {
+        background: "#3f1d2e",
+        color: "#fda4af",
+      };
+    }
+
     return {
-      background: "#3f1d2e",
-      color: "#fda4af",
+      background: "#1f2937",
+      color: "#cbd5e1",
     };
   }
 
@@ -96,13 +142,17 @@ export default function OrdersPage() {
           margin: "auto",
         }}
       >
+        {/* NAVBAR */}
+
         <nav
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             paddingBottom: "20px",
-            borderBottom: "1px solid #1f2937",
+            borderBottom:
+              "1px solid #1f2937",
           }}
         >
           <div
@@ -113,7 +163,11 @@ export default function OrdersPage() {
             }}
           >
             NOKOS{" "}
-            <span style={{ color: "#fff" }}>
+            <span
+              style={{
+                color: "#fff",
+              }}
+            >
               VIRTUAL
             </span>
           </div>
@@ -122,13 +176,26 @@ export default function OrdersPage() {
             style={{
               display: "flex",
               gap: "18px",
+              alignItems: "center",
             }}
           >
-            <Link href="/dashboard">
+            <Link
+              href="/dashboard"
+              style={{
+                color: "#cbd5e1",
+                textDecoration: "none",
+              }}
+            >
               Dashboard
             </Link>
 
-            <Link href="/buy">
+            <Link
+              href="/buy"
+              style={{
+                color: "#cbd5e1",
+                textDecoration: "none",
+              }}
+            >
               Beli Nomor
             </Link>
 
@@ -146,7 +213,13 @@ export default function OrdersPage() {
           </div>
         </nav>
 
-        <section style={{ marginTop: "40px" }}>
+        {/* HEADER */}
+
+        <section
+          style={{
+            marginTop: "40px",
+          }}
+        >
           <p
             style={{
               color: "#5eead4",
@@ -165,10 +238,17 @@ export default function OrdersPage() {
             Semua Pesanan
           </h1>
 
-          <p style={{ color: "#94a3b8" }}>
-            Riwayat nomor virtual dan status pesanan lu.
+          <p
+            style={{
+              color: "#94a3b8",
+            }}
+          >
+            Riwayat nomor virtual dan
+            status pesanan lu.
           </p>
         </section>
+
+        {/* FILTER */}
 
         <div
           style={{
@@ -188,11 +268,14 @@ export default function OrdersPage() {
           ].map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status)}
+              onClick={() =>
+                setFilter(status)
+              }
               style={{
                 padding: "10px 16px",
                 borderRadius: "10px",
-                border: "1px solid #374151",
+                border:
+                  "1px solid #374151",
                 background:
                   filter === status
                     ? "#5eead4"
@@ -212,11 +295,14 @@ export default function OrdersPage() {
           ))}
         </div>
 
+        {/* TABLE */}
+
         <section
           style={{
             marginTop: "20px",
             background: "#111827",
-            border: "1px solid #1f2937",
+            border:
+              "1px solid #1f2937",
             borderRadius: "16px",
             overflow: "hidden",
           }}
@@ -231,7 +317,8 @@ export default function OrdersPage() {
             >
               Memuat pesanan...
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : filteredOrders.length ===
+            0 ? (
             <div
               style={{
                 padding: "60px",
@@ -242,12 +329,17 @@ export default function OrdersPage() {
               Belum ada pesanan.
             </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
+            <div
+              style={{
+                overflowX: "auto",
+              }}
+            >
               <table
                 style={{
                   width: "100%",
-                  borderCollapse: "collapse",
-                  minWidth: "1000px",
+                  borderCollapse:
+                    "collapse",
+                  minWidth: "1100px",
                 }}
               >
                 <thead>
@@ -259,79 +351,129 @@ export default function OrdersPage() {
                       textAlign: "left",
                     }}
                   >
-                    <th style={th}>ORDER</th>
-                    <th style={th}>SERVICE</th>
-                    <th style={th}>COUNTRY</th>
-                    <th style={th}>PHONE</th>
-                    <th style={th}>STATUS</th>
-                    <th style={th}>PRICE</th>
-                    <th style={th}>DATE</th>
+                    <th style={th}>
+                      ORDER
+                    </th>
+
+                    <th style={th}>
+                      SERVICE
+                    </th>
+
+                    <th style={th}>
+                      COUNTRY
+                    </th>
+
+                    <th style={th}>
+                      PHONE
+                    </th>
+
+                    <th style={th}>
+                      OTP
+                    </th>
+
+                    <th style={th}>
+                      STATUS
+                    </th>
+
+                    <th style={th}>
+                      PRICE
+                    </th>
+
+                    <th style={th}>
+                      DATE
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      style={{
-                        borderBottom:
-                          "1px solid #1f2937",
-                      }}
-                    >
-                      <td style={td}>
-                        #{order.id}
-                      </td>
+                  {filteredOrders.map(
+                    (order) => (
+                      <tr
+                        key={order.id}
+                        style={{
+                          borderBottom:
+                            "1px solid #1f2937",
+                        }}
+                      >
+                        <td style={td}>
+                          #{order.id}
+                        </td>
 
-                      <td style={td}>
-                        📱{" "}
-                        {order.service_id || "-"}
-                      </td>
+                        <td style={td}>
+                          📱{" "}
+                          {order.service_id ||
+                            "-"}
+                        </td>
 
-                      <td style={td}>
-                        🌎{" "}
-                        {order.country_id || "-"}
-                      </td>
+                        <td style={td}>
+                          🌎{" "}
+                          {order.country_id ||
+                            "-"}
+                        </td>
 
-                      <td style={td}>
-                        {order.phone_number || "-"}
-                      </td>
+                        <td style={td}>
+                          {order.phone_number ||
+                            "-"}
+                        </td>
 
-                      <td style={td}>
-                        <span
+                        <td
                           style={{
-                            ...statusStyle(
-                              order.status
-                            ),
-                            padding:
-                              "6px 10px",
-                            borderRadius:
-                              "999px",
-                            fontSize: "12px",
+                            ...td,
                             fontWeight: 800,
+                            color:
+                              order.otp_code
+                                ? "#5eead4"
+                                : "#64748b",
                           }}
                         >
-                          {order.status || "-"}
-                        </span>
-                      </td>
+                          {order.otp_code ||
+                            "-"}
+                        </td>
 
-                      <td style={td}>
-                        Rp{" "}
-                        {Number(
-                          order.price || 0
-                        ).toLocaleString("id-ID")}
-                      </td>
+                        <td style={td}>
+                          <span
+                            style={{
+                              ...statusStyle(
+                                order.status
+                              ),
+                              padding:
+                                "6px 10px",
+                              borderRadius:
+                                "999px",
+                              fontSize:
+                                "12px",
+                              fontWeight: 800,
+                              display:
+                                "inline-block",
+                            }}
+                          >
+                            {order.status ||
+                              "-"}
+                          </span>
+                        </td>
 
-                      <td style={td}>
-                        {order.created_at
-                          ? new Date(
-                              order.created_at
-                            ).toLocaleString(
-                              "id-ID"
-                            )
-                          : "-"}
-                      </td>
-                    </tr>
-                  ))}
+                        <td style={td}>
+                          Rp{" "}
+                          {Number(
+                            order.price ||
+                              0
+                          ).toLocaleString(
+                            "id-ID"
+                          )}
+                        </td>
+
+                        <td style={td}>
+                          {order.created_at
+                            ? new Date(
+                                order.created_at
+                              ).toLocaleString(
+                                "id-ID"
+                              )
+                            : "-"}
+                        </td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             </div>
