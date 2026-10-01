@@ -9,47 +9,94 @@ export default function Dashboard() {
   const [balance, setBalance] = useState(0);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncError, setSyncError] = useState("");
 
   useEffect(() => {
     checkUser();
   }, []);
 
   async function checkUser() {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
+    try {
+      setLoading(true);
+      setSyncError("");
 
-    if (error || !user) {
-      window.location.href = "/login";
-      return;
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setUser(user);
+
+      // ==================================================
+      // SINKRON USER WEB KE DATABASE
+      // ==================================================
+
+      const syncResponse = await fetch(
+        "/api/user/sync",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const syncData = await syncResponse.json();
+
+      if (!syncResponse.ok || !syncData.success) {
+        throw new Error(
+          syncData.error ||
+            "Gagal sinkronisasi akun."
+        );
+      }
+
+      // Ambil saldo dari hasil sinkronisasi
+      setBalance(
+        Number(syncData.user?.balance || 0)
+      );
+
+      // ==================================================
+      // AMBIL ORDER USER
+      // ==================================================
+
+      const webId = `web:${user.id}`;
+
+      const { data: orderData, error: orderError } =
+        await supabase
+          .from("orders")
+          .select("*")
+          .eq("telegram_id", webId)
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(10);
+
+      if (orderError) {
+        console.log(
+          "ORDER LOAD ERROR:",
+          orderError.message
+        );
+      }
+
+      setOrders(orderData || []);
+    } catch (error) {
+      console.error(
+        "DASHBOARD ERROR:",
+        error
+      );
+
+      setSyncError(
+        error?.message ||
+          "Gagal memuat data dashboard."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setUser(user);
-
-    const googleId = `google:${user.id}`;
-
-    // Ambil data user dari Supabase
-    const { data: userData } = await supabase
-      .from("users")
-      .select("balance")
-      .eq("telegram_id", googleId)
-      .maybeSingle();
-
-    if (userData) {
-      setBalance(Number(userData.balance || 0));
-    }
-
-    // Ambil order user
-    const { data: orderData } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("telegram_id", googleId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    setOrders(orderData || []);
-    setLoading(false);
   }
 
   async function logout() {
@@ -77,12 +124,18 @@ export default function Dashboard() {
 
   const completedOrders = orders.filter(
     (order) =>
-      String(order.status).toUpperCase() === "COMPLETED"
+      String(order.status).toUpperCase() ===
+      "COMPLETED"
   ).length;
 
   const activeOrders = orders.filter(
     (order) =>
-      ["ACTIVE", "PENDING", "WAITING", "WAITING_OTP"].includes(
+      [
+        "ACTIVE",
+        "PENDING",
+        "WAITING",
+        "WAITING_OTP",
+      ].includes(
         String(order.status).toUpperCase()
       )
   ).length;
@@ -108,7 +161,8 @@ export default function Dashboard() {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "18px 0",
-            borderBottom: "1px solid #1f2937",
+            borderBottom:
+              "1px solid #1f2937",
           }}
         >
           <div
@@ -180,6 +234,22 @@ export default function Dashboard() {
           <p style={{ color: "#94a3b8" }}>
             {user?.email || "Pengguna"}
           </p>
+
+          {syncError && (
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "14px 16px",
+                background: "#3f1515",
+                border:
+                  "1px solid #7f1d1d",
+                borderRadius: "10px",
+                color: "#fca5a5",
+              }}
+            >
+              {syncError}
+            </div>
+          )}
         </section>
 
         <section
@@ -195,32 +265,29 @@ export default function Dashboard() {
             <p>💰 Saldo</p>
 
             <h2>
-              Rp {balance.toLocaleString("id-ID")}
+              Rp{" "}
+              {balance.toLocaleString(
+                "id-ID"
+              )}
             </h2>
           </div>
 
           <div className="feature">
             <p>📦 Total Pesanan</p>
 
-            <h2>
-              {orders.length}
-            </h2>
+            <h2>{orders.length}</h2>
           </div>
 
           <div className="feature">
             <p>📱 Pesanan Aktif</p>
 
-            <h2>
-              {activeOrders}
-            </h2>
+            <h2>{activeOrders}</h2>
           </div>
 
           <div className="feature">
             <p>✅ Selesai</p>
 
-            <h2>
-              {completedOrders}
-            </h2>
+            <h2>{completedOrders}</h2>
           </div>
         </section>
 
@@ -247,7 +314,8 @@ export default function Dashboard() {
               <h3>🛒 Beli Nomor</h3>
 
               <p>
-                Pilih negara, layanan, dan operator.
+                Pilih negara, layanan, dan
+                operator.
               </p>
             </Link>
 
@@ -308,7 +376,8 @@ export default function Dashboard() {
               marginTop: "16px",
               padding: "20px",
               background: "#111827",
-              border: "1px solid #1f2937",
+              border:
+                "1px solid #1f2937",
               borderRadius: "16px",
               overflowX: "auto",
             }}
@@ -327,7 +396,8 @@ export default function Dashboard() {
               <table
                 style={{
                   width: "100%",
-                  borderCollapse: "collapse",
+                  borderCollapse:
+                    "collapse",
                   minWidth: "700px",
                 }}
               >
@@ -338,19 +408,35 @@ export default function Dashboard() {
                       color: "#94a3b8",
                     }}
                   >
-                    <th style={{ padding: "12px" }}>
+                    <th
+                      style={{
+                        padding: "12px",
+                      }}
+                    >
                       Layanan
                     </th>
 
-                    <th style={{ padding: "12px" }}>
+                    <th
+                      style={{
+                        padding: "12px",
+                      }}
+                    >
                       Negara
                     </th>
 
-                    <th style={{ padding: "12px" }}>
+                    <th
+                      style={{
+                        padding: "12px",
+                      }}
+                    >
                       Status
                     </th>
 
-                    <th style={{ padding: "12px" }}>
+                    <th
+                      style={{
+                        padding: "12px",
+                      }}
+                    >
                       Harga
                     </th>
                   </tr>
@@ -365,12 +451,22 @@ export default function Dashboard() {
                           "1px solid #1f2937",
                       }}
                     >
-                      <td style={{ padding: "12px" }}>
-                        {order.service_id || "-"}
+                      <td
+                        style={{
+                          padding: "12px",
+                        }}
+                      >
+                        {order.service_id ||
+                          "-"}
                       </td>
 
-                      <td style={{ padding: "12px" }}>
-                        {order.country_id || "-"}
+                      <td
+                        style={{
+                          padding: "12px",
+                        }}
+                      >
+                        {order.country_id ||
+                          "-"}
                       </td>
 
                       <td
@@ -382,11 +478,17 @@ export default function Dashboard() {
                         {order.status || "-"}
                       </td>
 
-                      <td style={{ padding: "12px" }}>
+                      <td
+                        style={{
+                          padding: "12px",
+                        }}
+                      >
                         Rp{" "}
                         {Number(
                           order.price || 0
-                        ).toLocaleString("id-ID")}
+                        ).toLocaleString(
+                          "id-ID"
+                        )}
                       </td>
                     </tr>
                   ))}
