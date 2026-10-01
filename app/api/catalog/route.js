@@ -7,7 +7,6 @@ async function smsGet(path) {
   const response = await fetch(
     `${SMSCODE_BASE_URL}${path}`,
     {
-      method: "GET",
       headers: {
         Authorization: `Bearer ${process.env.SMSCODE_TOKEN}`,
         Accept: "application/json",
@@ -29,177 +28,49 @@ async function smsGet(path) {
     };
   }
 
-  return {
-    response,
-    data,
-  };
+  return { response, data };
 }
 
 function parsePrice(price) {
-  /*
-   * SMSCode bisa mengembalikan price sebagai:
-   *
-   * 1. number
-   * 2. object money
-   *
-   * Kita support keduanya.
-   */
-
   if (typeof price === "number") {
     return price;
   }
 
   if (typeof price === "string") {
-    const number = Number(price);
-
-    if (Number.isFinite(number)) {
-      return number;
-    }
+    const value = Number(price);
+    return Number.isFinite(value) ? value : 0;
   }
 
   if (price && typeof price === "object") {
-    const candidates = [
-      price.canonical_amount,
-      price.amount,
-      price.value,
-    ];
+    const value =
+      price.canonical_amount ??
+      price.amount ??
+      price.value;
 
-    for (const value of candidates) {
-      const number = Number(value);
+    const number = Number(value);
 
-      if (Number.isFinite(number)) {
-        return number;
-      }
-    }
+    return Number.isFinite(number)
+      ? number
+      : 0;
   }
 
   return 0;
 }
 
-function getOperatorName(operator) {
-  return (
-    operator?.display_name ||
-    operator?.name ||
-    operator?.operator_name ||
-    operator?.title ||
-    "Semua Operator"
-  );
-}
-
-function enrichProducts(
-  products,
-  countries,
-  services,
-  operators,
-  markup
-) {
-  const countryMap = new Map(
-    countries.map((country) => [
-      String(country.id),
-      country,
-    ])
-  );
-
-  const serviceMap = new Map(
-    services.map((service) => [
-      String(service.id),
-      service,
-    ])
-  );
-
-  const operatorMap = new Map(
-    operators.map((operator) => [
-      String(operator.id),
-      operator,
-    ])
-  );
-
-  return products.map((product) => {
-    const country = countryMap.get(
-      String(product.country_id)
-    );
-
-    const service = serviceMap.get(
-      String(product.platform_id)
-    );
-
-    const operator =
-      product.operator_id != null
-        ? operatorMap.get(
-            String(product.operator_id)
-          )
-        : null;
-
-    const supplierPrice = parsePrice(
-      product.price
-    );
-
-    const sellingPrice =
-      supplierPrice + markup;
-
-    return {
-      ...product,
-
-      supplier_price: supplierPrice,
-
-      selling_price: sellingPrice,
-
-      country_name:
-        country?.name ||
-        `Negara ${product.country_id}`,
-
-      country_code:
-        country?.code || "",
-
-      country_emoji:
-        country?.emoji || "",
-
-      service_name:
-        service?.name ||
-        `Platform ${product.platform_id}`,
-
-      operator_name:
-        operator
-          ? getOperatorName(operator)
-          : product.operator_name ||
-            product.operator_display ||
-            "Semua Operator",
-
-      operator_display:
-        operator
-          ? getOperatorName(operator)
-          : product.operator_name ||
-            product.operator_display ||
-            "Semua Operator",
-    };
-  });
-}
-
 async function getMarkup() {
-  const {
-    data,
-    error,
-  } = await supabaseAdmin
-    .from("pricing_settings")
-    .select("markup")
-    .eq("id", 1)
-    .maybeSingle();
+  const { data, error } =
+    await supabaseAdmin
+      .from("pricing_settings")
+      .select("markup")
+      .eq("id", 1)
+      .maybeSingle();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  const markup = Number(
-    data?.markup ?? 1000
-  );
+  const markup = Number(data?.markup ?? 1000);
 
-  if (
-    !Number.isInteger(markup) ||
-    markup < 0
-  ) {
-    throw new Error(
-      "Markup pricing tidak valid."
-    );
+  if (!Number.isInteger(markup) || markup < 0) {
+    throw new Error("Markup pricing tidak valid.");
   }
 
   return markup;
@@ -207,12 +78,10 @@ async function getMarkup() {
 
 export async function GET(request) {
   try {
-    const { searchParams } =
-      new URL(request.url);
+    const { searchParams } = new URL(request.url);
 
     const action =
-      searchParams.get("action") ||
-      "countries";
+      searchParams.get("action") || "countries";
 
     const countryId =
       searchParams.get("country_id");
@@ -223,11 +92,9 @@ export async function GET(request) {
     const operatorId =
       searchParams.get("operator_id");
 
-    /*
-     * ==================================================
-     * COUNTRIES
-     * ==================================================
-     */
+    // =========================
+    // COUNTRIES
+    // =========================
 
     if (action === "countries") {
       const result = await smsGet(
@@ -243,12 +110,9 @@ export async function GET(request) {
             success: false,
             error:
               result.data?.message ||
-              "Gagal mengambil negara SMSCode.",
+              "Gagal mengambil negara.",
           },
-          {
-            status:
-              result.response.status || 502,
-          }
+          { status: 502 }
         );
       }
 
@@ -258,36 +122,25 @@ export async function GET(request) {
       });
     }
 
-    /*
-     * ==================================================
-     * SERVICES BERDASARKAN COUNTRY
-     * ==================================================
-     */
+    // =========================
+    // SERVICES
+    // =========================
 
     if (action === "services") {
       if (!countryId) {
         return NextResponse.json(
           {
             success: false,
-            error:
-              "country_id wajib diisi.",
+            error: "country_id wajib diisi.",
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
 
-      const params =
-        new URLSearchParams();
-
-      params.set(
-        "country_id",
-        countryId
-      );
-
       const result = await smsGet(
-        `/catalog/services?${params.toString()}`
+        `/catalog/services?country_id=${encodeURIComponent(
+          countryId
+        )}`
       );
 
       if (
@@ -299,70 +152,40 @@ export async function GET(request) {
             success: false,
             error:
               result.data?.message ||
-              "Gagal mengambil service SMSCode.",
+              "Gagal mengambil service.",
           },
-          {
-            status:
-              result.response.status || 502,
-          }
+          { status: 502 }
         );
       }
 
       return NextResponse.json({
         success: true,
-        country_id: countryId,
         data: result.data.data || [],
       });
     }
 
-    /*
-     * ==================================================
-     * OPERATORS BERDASARKAN COUNTRY + SERVICE
-     * ==================================================
-     */
+    // =========================
+    // OPERATORS
+    // =========================
 
     if (action === "operators") {
-      if (!countryId) {
+      if (!countryId || !platformId) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "country_id wajib diisi.",
+              "country_id dan platform_id wajib diisi.",
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
-
-      if (!platformId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "platform_id wajib diisi.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      const params =
-        new URLSearchParams();
-
-      params.set(
-        "country_id",
-        countryId
-      );
-
-      params.set(
-        "platform_id",
-        platformId
-      );
 
       const result = await smsGet(
-        `/catalog/operators?${params.toString()}`
+        `/catalog/operators?country_id=${encodeURIComponent(
+          countryId
+        )}&platform_id=${encodeURIComponent(
+          platformId
+        )}`
       );
 
       if (
@@ -374,103 +197,55 @@ export async function GET(request) {
             success: false,
             error:
               result.data?.message ||
-              "Gagal mengambil operator SMSCode.",
+              "Gagal mengambil operator.",
           },
-          {
-            status:
-              result.response.status || 502,
-          }
+          { status: 502 }
         );
       }
 
       return NextResponse.json({
         success: true,
-        country_id: countryId,
-        platform_id: platformId,
         data: result.data.data || [],
       });
     }
 
-    /*
-     * ==================================================
-     * PRODUCTS BERDASARKAN COUNTRY + SERVICE + OPERATOR
-     * ==================================================
-     */
+    // =========================
+    // PRODUCTS
+    // =========================
 
     if (action === "products") {
-      if (!countryId) {
+      if (!countryId || !platformId) {
         return NextResponse.json(
           {
             success: false,
             error:
-              "country_id wajib diisi.",
+              "country_id dan platform_id wajib diisi.",
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
 
-      if (!platformId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "platform_id wajib diisi.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+      const params = new URLSearchParams();
 
-      const params =
-        new URLSearchParams();
-
-      params.set(
-        "country_id",
-        countryId
-      );
-
-      params.set(
-        "platform_id",
-        platformId
-      );
+      params.set("country_id", countryId);
+      params.set("platform_id", platformId);
 
       /*
+       * PENTING:
        * operator_id hanya dikirim kalau
-       * user memilih operator tertentu.
-       *
-       * Kalau "all", jangan kirim operator_id.
-       * SMSCode akan memberikan produk Any/semua
-       * operator sesuai catalog mereka.
+       * user memang memilih operator tertentu.
        */
-
       if (
         operatorId &&
         operatorId !== "all" &&
         operatorId !== "any"
       ) {
-        params.set(
-          "operator_id",
-          operatorId
-        );
+        params.set("operator_id", operatorId);
       }
 
-      params.set(
-        "sort",
-        "price_asc"
-      );
-
-      params.set(
-        "limit",
-        "10000"
-      );
-
-      params.set(
-        "page",
-        "1"
-      );
+      params.set("sort", "price_asc");
+      params.set("limit", "10000");
+      params.set("page", "1");
 
       const result = await smsGet(
         `/catalog/products?${params.toString()}`
@@ -485,103 +260,92 @@ export async function GET(request) {
             success: false,
             error:
               result.data?.message ||
-              "Gagal mengambil produk SMSCode.",
+              "Gagal mengambil produk.",
           },
-          {
-            status:
-              result.response.status || 502,
-          }
+          { status: 502 }
         );
       }
 
+      const products =
+        result.data.data || [];
+
+      const markup = await getMarkup();
+
       /*
-       * Ambil metadata untuk enrichment.
+       * Tambahkan informasi operator
+       * langsung berdasarkan operator_id.
        */
-
-      const [
-        countriesResult,
-        servicesResult,
-        operatorsResult,
-        markup,
-      ] = await Promise.all([
-        smsGet(
-          "/catalog/countries"
-        ),
-
-        smsGet(
-          `/catalog/services?country_id=${encodeURIComponent(
-            countryId
-          )}`
-        ),
-
-        smsGet(
+      const operatorResult =
+        await smsGet(
           `/catalog/operators?country_id=${encodeURIComponent(
             countryId
           )}&platform_id=${encodeURIComponent(
             platformId
           )}`
-        ),
-
-        getMarkup(),
-      ]);
-
-      const countries =
-        countriesResult.data?.data ||
-        [];
-
-      const services =
-        servicesResult.data?.data ||
-        [];
+        );
 
       const operators =
-        operatorsResult.data?.data ||
-        [];
+        operatorResult.data?.data || [];
 
-      const products =
-        result.data.data || [];
+      const operatorMap = new Map();
 
-      const enrichedProducts =
-        enrichProducts(
-          products,
-          countries,
-          services,
-          operators,
-          markup
-        );
+      for (const operator of operators) {
+        if (
+          operator.operator_id != null
+        ) {
+          operatorMap.set(
+            String(operator.operator_id),
+            operator
+          );
+        }
+      }
+
+      const enriched =
+        products.map((product) => {
+          const supplierPrice =
+            parsePrice(product.price);
+
+          const sellingPrice =
+            supplierPrice + markup;
+
+          const operator =
+            product.operator_id != null
+              ? operatorMap.get(
+                  String(product.operator_id)
+                )
+              : null;
+
+          return {
+            ...product,
+
+            supplier_price:
+              supplierPrice,
+
+            selling_price:
+              sellingPrice,
+
+            operator_name:
+              operator?.display_name ||
+              operator?.name ||
+              operator?.local_name ||
+              product.operator_name ||
+              "Semua Operator",
+          };
+        });
 
       return NextResponse.json({
         success: true,
-
-        country_id:
-          countryId,
-
-        platform_id:
-          platformId,
-
-        operator_id:
-          operatorId || "all",
-
+        data: enriched,
         markup,
-
-        data: enrichedProducts,
       });
     }
-
-    /*
-     * ==================================================
-     * ACTION TIDAK DIKENAL
-     * ==================================================
-     */
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          "Action catalog tidak dikenal.",
+        error: "Action tidak dikenal.",
       },
-      {
-        status: 400,
-      }
+      { status: 400 }
     );
   } catch (error) {
     console.error(
@@ -592,16 +356,11 @@ export async function GET(request) {
     return NextResponse.json(
       {
         success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message:
-            error?.message ||
-            "Gagal mengambil katalog SMSCode.",
-        },
+        error:
+          error?.message ||
+          "Gagal mengambil katalog SMSCode.",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
