@@ -40,8 +40,9 @@ export async function POST() {
       const { data, error: insertError } =
         await supabaseAdmin
           .from("users")
-          .insert({
-            auth_user_id: user.id,
+         .insert({
+  id: Date.now(),
+  auth_user_id: user.id,
             email: user.email || null,
             provider: "email",
             auth_id: user.id,
