@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 
 export async function GET(request) {
   try {
@@ -21,94 +22,180 @@ export async function GET(request) {
       Authorization: `Bearer ${process.env.SMSCODE_TOKEN}`,
     };
 
-    const [productsResponse, countriesResponse, servicesResponse] =
-      await Promise.all([
-        fetch(
-          `https://api.smscode.gg/v1/catalog/products?${productParams.toString()}`,
-          {
-            headers,
-            cache: "no-store",
-          }
-        ),
-
-        fetch("https://api.smscode.gg/v1/catalog/countries", {
+    const [
+      productsResponse,
+      countriesResponse,
+      servicesResponse,
+      pricingResponse,
+    ] = await Promise.all([
+      fetch(
+        `https://api.smscode.gg/v1/catalog/products?${productParams.toString()}`,
+        {
           headers,
           cache: "no-store",
-        }),
+        }
+      ),
 
-        fetch("https://api.smscode.gg/v1/catalog/services", {
+      fetch(
+        "https://api.smscode.gg/v1/catalog/countries",
+        {
           headers,
           cache: "no-store",
-        }),
-      ]);
+        }
+      ),
 
-    const productsData = await productsResponse.json();
-    const countriesData = await countriesResponse.json();
-    const servicesData = await servicesResponse.json();
+      fetch(
+        "https://api.smscode.gg/v1/catalog/services",
+        {
+          headers,
+          cache: "no-store",
+        }
+      ),
+
+      supabaseAdmin
+        .from("pricing_settings")
+        .select("markup")
+        .eq("id", 1)
+        .maybeSingle(),
+    ]);
+
+    const productsData =
+      await productsResponse.json();
+
+    const countriesData =
+      await countriesResponse.json();
+
+    const servicesData =
+      await servicesResponse.json();
 
     if (!productsResponse.ok) {
-      return NextResponse.json(productsData, {
-        status: productsResponse.status,
-      });
+      return NextResponse.json(
+        productsData,
+        {
+          status:
+            productsResponse.status,
+        }
+      );
     }
 
-    const countries = countriesData.data || [];
-    const services = servicesData.data || [];
-    const products = productsData.data || [];
+    if (pricingResponse.error) {
+      throw pricingResponse.error;
+    }
 
-    const countryMap = new Map(
-      countries.map((country) => [
-        String(country.id),
-        country,
-      ])
+    const markup = Number(
+      pricingResponse.data?.markup ?? 1000
     );
 
-    const serviceMap = new Map(
-      services.map((service) => [
-        String(service.id),
-        service,
-      ])
-    );
+    if (
+      !Number.isInteger(markup) ||
+      markup < 0
+    ) {
+      throw new Error(
+        "Markup pricing tidak valid."
+      );
+    }
 
-    const enrichedProducts = products.map((product) => {
-      const country = countryMap.get(
-        String(product.country_id)
+    const countries =
+      countriesData.data || [];
+
+    const services =
+      servicesData.data || [];
+
+    const products =
+      productsData.data || [];
+
+    const countryMap =
+      new Map(
+        countries.map(
+          (country) => [
+            String(country.id),
+            country,
+          ]
+        )
       );
 
-      const service = serviceMap.get(
-        String(product.platform_id)
+    const serviceMap =
+      new Map(
+        services.map(
+          (service) => [
+            String(service.id),
+            service,
+          ]
+        )
       );
 
-      return {
-        ...product,
+    const enrichedProducts =
+      products.map((product) => {
+        const country =
+          countryMap.get(
+            String(
+              product.country_id
+            )
+          );
 
-        country_name: country?.name || `Negara ${product.country_id}`,
-        country_code: country?.code || "",
-        country_emoji: country?.emoji || "",
+        const service =
+          serviceMap.get(
+            String(
+              product.platform_id
+            )
+          );
 
-        service_name:
-          service?.name ||
-          `Platform ${product.platform_id}`,
+        const supplierPrice =
+          Number(
+            product.price || 0
+          );
 
-        operator_name:
-          product.operator_name ||
-          "Semua Operator",
-      };
-    });
+        return {
+          ...product,
+
+          supplier_price:
+            supplierPrice,
+
+          selling_price:
+            supplierPrice +
+            markup,
+
+          country_name:
+            country?.name ||
+            `Negara ${product.country_id}`,
+
+          country_code:
+            country?.code || "",
+
+          country_emoji:
+            country?.emoji || "",
+
+          service_name:
+            service?.name ||
+            `Platform ${product.platform_id}`,
+
+          operator_name:
+            product.operator_name ||
+            "Semua Operator",
+        };
+      });
 
     return NextResponse.json({
       success: true,
+      markup,
       data: enrichedProducts,
       countries,
       services,
     });
   } catch (error) {
+    console.error(
+      "CATALOG ERROR:",
+      error
+    );
+
     return NextResponse.json(
       {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "Gagal mengambil katalog SMSCode",
+          message:
+            error?.message ||
+            "Gagal mengambil katalog SMSCode",
         },
       },
       { status: 500 }
