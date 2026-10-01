@@ -19,6 +19,10 @@ function isAdminEmail(email) {
 
 export async function POST(request) {
   try {
+    // =========================
+    // CEK ADMIN
+    // =========================
+
     const supabase =
       await createSupabaseServerClient();
 
@@ -42,16 +46,18 @@ export async function POST(request) {
       );
     }
 
+    // =========================
+    // AMBIL DATA
+    // =========================
+
     const body =
       await request.json();
 
-    const userId = Number(
-      body.user_id
-    );
+    const userId =
+      Number(body.user_id);
 
-    const amount = Number(
-      body.amount
-    );
+    const amount =
+      Number(body.amount);
 
     if (
       !Number.isInteger(userId) ||
@@ -68,13 +74,19 @@ export async function POST(request) {
       );
     }
 
+    // =========================
+    // CARI USER
+    // =========================
+
     const {
       data: targetUser,
       error: findError,
     } =
       await supabaseAdmin
         .from("users")
-        .select("id, balance")
+        .select(
+          "id, auth_user_id, email, balance"
+        )
         .eq("id", userId)
         .single();
 
@@ -91,6 +103,10 @@ export async function POST(request) {
         { status: 404 }
       );
     }
+
+    // =========================
+    // HITUNG SALDO
+    // =========================
 
     const currentBalance =
       Number(
@@ -111,6 +127,10 @@ export async function POST(request) {
       );
     }
 
+    // =========================
+    // UPDATE SALDO
+    // =========================
+
     const {
       data: updatedUser,
       error: updateError,
@@ -121,16 +141,111 @@ export async function POST(request) {
           balance: newBalance,
         })
         .eq("id", userId)
-        .select("id, balance")
+        .select(
+          "id, auth_user_id, email, balance"
+        )
         .single();
 
     if (updateError) {
       throw updateError;
     }
 
+    // =========================
+    // CATAT TRANSAKSI
+    // =========================
+
+    const transactionType =
+      amount > 0
+        ? "admin_add"
+        : "admin_subtract";
+
+    const description =
+      amount > 0
+        ? "Saldo ditambahkan oleh admin"
+        : "Saldo dikurangi oleh admin";
+
+    const {
+      error: transactionError,
+    } =
+      await supabaseAdmin
+        .from(
+          "balance_transactions"
+        )
+        .insert({
+          user_id: targetUser.id,
+
+          auth_user_id:
+            targetUser.auth_user_id ||
+            null,
+
+          type:
+            transactionType,
+
+          amount: amount,
+
+          balance_before:
+            currentBalance,
+
+          balance_after:
+            newBalance,
+
+          reference_type:
+            "admin",
+
+          reference_id:
+            user.id,
+
+          description:
+            description,
+        });
+
+    // =========================
+    // JIKA TRANSAKSI GAGAL
+    // =========================
+
+    if (transactionError) {
+      console.error(
+        "BALANCE TRANSACTION ERROR:",
+        transactionError
+      );
+
+      // Rollback saldo
+      await supabaseAdmin
+        .from("users")
+        .update({
+          balance:
+            currentBalance,
+        })
+        .eq(
+          "id",
+          userId
+        );
+
+      throw transactionError;
+    }
+
+    // =========================
+    // RESPONSE
+    // =========================
+
     return NextResponse.json({
       success: true,
+
       user: updatedUser,
+
+      transaction: {
+        type:
+          transactionType,
+
+        amount:
+          amount,
+
+        balance_before:
+          currentBalance,
+
+        balance_after:
+          newBalance,
+      },
     });
   } catch (error) {
     console.error(
