@@ -40,20 +40,13 @@ export async function POST() {
         .upsert(
           {
             telegram_id: webId,
-            username: user.email || "-",
-            first_name:
-              user.user_metadata?.full_name ||
-              "Pengguna Web",
             balance: Number(existingUser?.balance || 0),
-            is_active: true,
           },
           {
             onConflict: "telegram_id",
           }
         )
-        .select(
-          "id, telegram_id, username, first_name, balance, is_active"
-        )
+        .select("id, telegram_id, balance")
         .single();
 
     if (syncError) {
