@@ -2,207 +2,443 @@
 
 import { useState } from "react";
 
+const QUICK_AMOUNTS = [
+  15000,
+  25000,
+  50000,
+  100000,
+  250000,
+  500000,
+];
+
+const MIN_DEPOSIT = 15000;
+
+function formatRupiah(value) {
+  return new Intl.NumberFormat("id-ID").format(value);
+}
+
 export default function DepositPage() {
   const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [deposit, setDeposit] = useState(null);
 
-  const quickAmounts = [15000, 25000, 50000, 100000, 250000, 500000];
+  const numericAmount = Number(
+    String(amount).replace(/\D/g, "")
+  );
 
-  function formatRupiah(value) {
-    return Number(value || 0).toLocaleString("id-ID");
+  function chooseAmount(value) {
+    setAmount(String(value));
+    setMessage("");
+    setDeposit(null);
+  }
+
+  function handleAmountChange(e) {
+    const value = e.target.value.replace(/\D/g, "");
+
+    setAmount(value);
+    setMessage("");
+    setDeposit(null);
+  }
+
+  async function handleDeposit() {
+    setMessage("");
+    setDeposit(null);
+
+    if (
+      !Number.isInteger(numericAmount) ||
+      numericAmount < MIN_DEPOSIT
+    ) {
+      setMessage(
+        `Minimum deposit Rp${formatRupiah(
+          MIN_DEPOSIT
+        )}.`
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        "/api/deposit/create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: numericAmount,
+          }),
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error ||
+            "Gagal membuat pembayaran."
+        );
+      }
+
+      setDeposit(data.deposit);
+    } catch (error) {
+      setMessage(
+        error.message ||
+          "Terjadi kesalahan saat membuat pembayaran."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#070b14",
+        background: "#0b1020",
         color: "#fff",
-        padding: "24px",
+        padding: "40px 20px",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: "900px", margin: "auto" }}>
-        <nav
+      <div
+        style={{
+          maxWidth: 700,
+          margin: "0 auto",
+        }}
+      >
+        <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingBottom: "20px",
-            borderBottom: "1px solid #1f2937",
+            marginBottom: 28,
           }}
         >
           <div
             style={{
-              fontSize: "22px",
+              fontSize: 28,
               fontWeight: 800,
-              color: "#5eead4",
+              letterSpacing: 1,
             }}
           >
-            NOKOS <span style={{ color: "#fff" }}>VIRTUAL</span>
+            NOKOS <span style={{ color: "#72efb1" }}>
+              STORE
+            </span>
           </div>
 
-          <a
-            href="/dashboard"
+          <h1
             style={{
-              color: "#94a3b8",
-              textDecoration: "none",
+              marginTop: 28,
+              marginBottom: 8,
             }}
           >
-            ← Dashboard
-          </a>
-        </nav>
-
-        <section style={{ marginTop: "40px" }}>
-          <p style={{ color: "#5eead4", fontWeight: 700 }}>
-            DEPOSIT
-          </p>
-
-          <h1 style={{ fontSize: "32px", margin: "8px 0" }}>
-            Isi Saldo
+            Deposit Saldo
           </h1>
 
-          <p style={{ color: "#94a3b8" }}>
-            Tambahkan saldo untuk membeli nomor virtual.
+          <p
+            style={{
+              color: "#9eabbf",
+              margin: 0,
+              lineHeight: 1.6,
+            }}
+          >
+            Tambahkan saldo untuk membeli nomor
+            virtual.
           </p>
-        </section>
+        </div>
 
         <section
           style={{
-            marginTop: "30px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "18px",
-            padding: "24px",
+            background: "#11182b",
+            border: "1px solid #26304a",
+            borderRadius: 16,
+            padding: 22,
           }}
         >
-          <label
+          <h3
             style={{
-              display: "block",
-              marginBottom: "10px",
-              fontWeight: 700,
+              marginTop: 0,
+              marginBottom: 14,
             }}
           >
-            Nominal Deposit
-          </label>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "#070b14",
-              border: "1px solid #374151",
-              borderRadius: "12px",
-              padding: "0 14px",
-            }}
-          >
-            <span style={{ color: "#94a3b8" }}>Rp</span>
-
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Masukkan nominal"
-              style={{
-                width: "100%",
-                padding: "15px 10px",
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                color: "#fff",
-                fontSize: "16px",
-              }}
-            />
-          </div>
+            Pilih nominal
+          </h3>
 
           <div
             style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(120px, 1fr))",
-              gap: "10px",
-              marginTop: "15px",
+                "repeat(2, minmax(0, 1fr))",
+              gap: 10,
             }}
           >
-            {quickAmounts.map((value) => (
-              <button
-                key={value}
-                onClick={() => setAmount(String(value))}
-                style={{
-                  padding: "11px",
-                  borderRadius: "10px",
-                  border: "1px solid #374151",
-                  background: "#070b14",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                Rp {formatRupiah(value)}
-              </button>
-            ))}
+            {QUICK_AMOUNTS.map((value) => {
+              const selected =
+                numericAmount === value;
+
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    chooseAmount(value)
+                  }
+                  style={{
+                    padding: "13px 10px",
+                    borderRadius: 10,
+                    border: selected
+                      ? "1px solid #72efb1"
+                      : "1px solid #303a55",
+                    background: selected
+                      ? "#17382d"
+                      : "#151d32",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  Rp{formatRupiah(value)}
+                </button>
+              );
+            })}
           </div>
 
           <div
             style={{
-              marginTop: "22px",
-              padding: "15px",
-              borderRadius: "12px",
-              background: "#0b1220",
-              color: "#94a3b8",
+              marginTop: 22,
             }}
           >
-            💳 Pembayaran: <strong style={{ color: "#fff" }}>
-              QRIS
-            </strong>
-            <br />
-            <small>
+            <label
+              style={{
+                display: "block",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
+              Atau masukkan nominal sendiri
+            </label>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: "#0c1324",
+                border: "1px solid #303a55",
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <span
+                style={{
+                  paddingLeft: 14,
+                  color: "#9eabbf",
+                }}
+              >
+                Rp
+              </span>
+
+              <input
+                type="text"
+                inputMode="numeric"
+                value={
+                  amount
+                    ? formatRupiah(
+                        numericAmount
+                      )
+                    : ""
+                }
+                onChange={handleAmountChange}
+                placeholder="15000"
+                style={{
+                  width: "100%",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  color: "#fff",
+                  padding: "14px 12px",
+                  fontSize: 16,
+                }}
+              />
+            </div>
+
+            <p
+              style={{
+                color: "#7f8ca3",
+                fontSize: 13,
+                marginTop: 8,
+              }}
+            >
               Minimum deposit Rp15.000
-            </small>
+            </p>
           </div>
 
           <button
-            disabled={!amount || Number(amount) < 15000}
+            type="button"
+            onClick={handleDeposit}
+            disabled={loading}
             style={{
               width: "100%",
-              marginTop: "20px",
+              marginTop: 10,
               padding: "14px",
               border: "none",
-              borderRadius: "12px",
-              background:
-                amount && Number(amount) >= 15000
-                  ? "#5eead4"
-                  : "#374151",
-              color:
-                amount && Number(amount) >= 15000
-                  ? "#06111a"
-                  : "#94a3b8",
+              borderRadius: 10,
+              background: loading
+                ? "#40504a"
+                : "#72efb1",
+              color: "#07120d",
+              fontSize: 16,
               fontWeight: 800,
-              fontSize: "16px",
-              cursor:
-                amount && Number(amount) >= 15000
-                  ? "pointer"
-                  : "not-allowed",
+              cursor: loading
+                ? "wait"
+                : "pointer",
             }}
           >
-            Buat Pembayaran QRIS
+            {loading
+              ? "Membuat QRIS..."
+              : "Deposit Sekarang"}
           </button>
+
+          {message && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 13,
+                borderRadius: 10,
+                background: "#3a1d25",
+                color: "#ff9daa",
+                lineHeight: 1.5,
+              }}
+            >
+              {message}
+            </div>
+          )}
         </section>
 
-        <section
-          style={{
-            marginTop: "25px",
-            padding: "20px",
-            background: "#111827",
-            border: "1px solid #1f2937",
-            borderRadius: "18px",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>
-            Riwayat Deposit
-          </h2>
+        {deposit && (
+          <section
+            style={{
+              marginTop: 20,
+              background: "#11182b",
+              border: "1px solid #26304a",
+              borderRadius: 16,
+              padding: 22,
+              textAlign: "center",
+            }}
+          >
+            <h2
+              style={{
+                marginTop: 0,
+              }}
+            >
+              QRIS Pembayaran
+            </h2>
 
-          <p style={{ color: "#94a3b8" }}>
-            Belum ada transaksi deposit.
-          </p>
-        </section>
+            <p
+              style={{
+                color: "#9eabbf",
+                marginBottom: 5,
+              }}
+            >
+              Nominal
+            </p>
+
+            <div
+              style={{
+                fontSize: 25,
+                fontWeight: 800,
+                color: "#72efb1",
+                marginBottom: 18,
+              }}
+            >
+              Rp{formatRupiah(deposit.amount)}
+            </div>
+
+            {deposit.qr_url ? (
+              <img
+                src={deposit.qr_url}
+                alt="QRIS Pembayaran"
+                style={{
+                  width: 280,
+                  maxWidth: "100%",
+                  background: "#fff",
+                  padding: 12,
+                  borderRadius: 12,
+                }}
+              />
+            ) : (
+              <p
+                style={{
+                  color: "#ffcf70",
+                }}
+              >
+                QR belum tersedia dari Midtrans.
+              </p>
+            )}
+
+            <div
+              style={{
+                marginTop: 18,
+                padding: 14,
+                background: "#0c1324",
+                borderRadius: 10,
+                textAlign: "left",
+              }}
+            >
+              <div
+                style={{
+                  color: "#7f8ca3",
+                  fontSize: 13,
+                }}
+              >
+                Order ID
+              </div>
+
+              <div
+                style={{
+                  marginTop: 4,
+                  wordBreak: "break-all",
+                }}
+              >
+                {deposit.order_id}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  color: "#7f8ca3",
+                  fontSize: 13,
+                }}
+              >
+                Status
+              </div>
+
+              <div
+                style={{
+                  marginTop: 4,
+                  color: "#72efb1",
+                  fontWeight: 700,
+                }}
+              >
+                {deposit.status}
+              </div>
+            </div>
+
+            <p
+              style={{
+                color: "#9eabbf",
+                fontSize: 13,
+                lineHeight: 1.6,
+                marginTop: 18,
+              }}
+            >
+              Scan QRIS menggunakan aplikasi
+              pembayaran yang mendukung QRIS.
+              Setelah pembayaran terverifikasi,
+              saldo akan diproses otomatis.
+            </p>
+          </section>
+        )}
       </div>
     </main>
   );
