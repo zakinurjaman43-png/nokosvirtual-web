@@ -21,36 +21,66 @@ export async function POST() {
       );
     }
 
-    const webId = `web:${user.id}`;
-
+    // Cari user web berdasarkan ID Supabase Auth
     const { data: existingUser, error: findError } =
       await supabaseAdmin
         .from("users")
         .select("id, balance")
-        .eq("telegram_id", webId)
+        .eq("auth_user_id", user.id)
         .maybeSingle();
 
     if (findError) {
       throw findError;
     }
 
-    const { data: syncedUser, error: syncError } =
-      await supabaseAdmin
-        .from("users")
-        .upsert(
-          {
-            telegram_id: webId,
-            balance: Number(existingUser?.balance || 0),
-          },
-          {
-            onConflict: "telegram_id",
-          }
-        )
-        .select("id, telegram_id, balance")
-        .single();
+    let syncedUser;
 
-    if (syncError) {
-      throw syncError;
+    // Kalau belum ada, buat user baru
+    if (!existingUser) {
+      const { data, error: insertError } =
+        await supabaseAdmin
+          .from("users")
+          .insert({
+            auth_user_id: user.id,
+            email: user.email || null,
+            provider: "email",
+            auth_id: user.id,
+            telegram_id: `web:${user.id}`,
+            balance: 0,
+            is_active: true,
+          })
+          .select(
+            "id, auth_user_id, email, balance, is_active"
+          )
+          .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      syncedUser = data;
+    } else {
+      // Kalau sudah ada, ambil data yang sudah tersimpan
+      const { data, error: updateError } =
+        await supabaseAdmin
+          .from("users")
+          .update({
+            email: user.email || null,
+            provider: "email",
+            auth_id: user.id,
+            is_active: true,
+          })
+          .eq("auth_user_id", user.id)
+          .select(
+            "id, auth_user_id, email, balance, is_active"
+          )
+          .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      syncedUser = data;
     }
 
     return NextResponse.json({
