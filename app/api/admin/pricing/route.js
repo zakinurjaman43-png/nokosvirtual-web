@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "../../../../../lib/supabaseServer";
-import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
+import { createSupabaseServerClient } from "../../../../lib/supabaseServer";
+import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
 function isAdminEmail(email) {
   const adminEmails =
@@ -63,6 +63,11 @@ export async function GET() {
         },
     });
   } catch (error) {
+    console.error(
+      "ADMIN PRICING GET ERROR:",
+      error
+    );
+
     return NextResponse.json(
       {
         success: false,
@@ -143,6 +148,11 @@ export async function POST(request) {
       pricing: data,
     });
   } catch (error) {
+    console.error(
+      "ADMIN PRICING POST ERROR:",
+      error
+    );
+
     return NextResponse.json(
       {
         success: false,
