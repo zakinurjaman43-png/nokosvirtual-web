@@ -4,23 +4,31 @@ import crypto from "crypto";
 import { createSupabaseServerClient } from "../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
 
-const SMSCODE_BASE_URL = "https://api.smscode.gg/v1";
+const SMSCODE_BASE_URL =
+  "https://api.smscode.gg/v1";
 
-async function smsRequest(path, options = {}) {
+async function smsRequest(
+  path,
+  options = {}
+) {
   const response = await fetch(
     `${SMSCODE_BASE_URL}${path}`,
     {
       ...options,
+
       headers: {
         Authorization: `Bearer ${process.env.SMSCODE_TOKEN}`,
         "Content-Type": "application/json",
+        Accept: "application/json",
         ...(options.headers || {}),
       },
+
       cache: "no-store",
     }
   );
 
-  const text = await response.text();
+  const text =
+    await response.text();
 
   let data;
 
@@ -30,7 +38,8 @@ async function smsRequest(path, options = {}) {
     data = {
       success: false,
       message:
-        text || "Response SMSCode tidak valid.",
+        text ||
+        "Response SMSCode tidak valid.",
     };
   }
 
@@ -40,14 +49,87 @@ async function smsRequest(path, options = {}) {
   };
 }
 
+/*
+ * SMSCode v1:
+ * price = number
+ *
+ * Kita tetap support object
+ * untuk keamanan kompatibilitas.
+ */
+function parsePrice(price) {
+  if (
+    typeof price === "number" &&
+    Number.isFinite(price)
+  ) {
+    return price;
+  }
+
+  if (
+    typeof price === "string"
+  ) {
+    const value = Number(price);
+
+    if (Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  if (
+    price &&
+    typeof price === "object"
+  ) {
+    const candidates = [
+      price.canonical_amount,
+      price.amount,
+      price.value,
+    ];
+
+    for (const candidate of candidates) {
+      const value =
+        Number(candidate);
+
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+  }
+
+  return NaN;
+}
+
+function getOperatorId(product) {
+  if (
+    product?.operator_id === null ||
+    product?.operator_id === undefined ||
+    product?.operator_id === ""
+  ) {
+    return null;
+  }
+
+  const value =
+    Number(product.operator_id);
+
+  return Number.isInteger(value)
+    ? value
+    : null;
+}
+
+/*
+ * ==================================================
+ * POST PURCHASE
+ * ==================================================
+ */
+
 export async function POST(request) {
   let reservationId = null;
   let supplierOrderCreated = false;
 
   try {
-    // ==================================================
-    // AUTH
-    // ==================================================
+    /*
+     * ==================================================
+     * AUTH
+     * ==================================================
+     */
 
     const supabase =
       await createSupabaseServerClient();
@@ -55,27 +137,53 @@ export async function POST(request) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
-    if (authError || !user) {
+    if (
+      authError ||
+      !user
+    ) {
       return NextResponse.json(
         {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
-    // ==================================================
-    // INPUT
-    // ==================================================
+    /*
+     * ==================================================
+     * INPUT
+     * ==================================================
+     */
 
     const body =
       await request.json();
 
     const productId =
       Number(body.product_id);
+
+    const requestedCountryId =
+      body.country_id != null
+        ? String(body.country_id)
+        : null;
+
+    const requestedPlatformId =
+      body.platform_id != null
+        ? String(body.platform_id)
+        : null;
+
+    const requestedOperatorId =
+      body.operator_id != null &&
+      body.operator_id !== "" &&
+      body.operator_id !== "all" &&
+      body.operator_id !== "any"
+        ? String(body.operator_id)
+        : null;
 
     if (
       !Number.isInteger(productId) ||
@@ -87,13 +195,33 @@ export async function POST(request) {
           error:
             "product_id tidak valid.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    // ==================================================
-    // USER DATABASE
-    // ==================================================
+    if (
+      !requestedCountryId ||
+      !requestedPlatformId
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Country dan service wajib dipilih.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /*
+     * ==================================================
+     * USER DATABASE
+     * ==================================================
+     */
 
     const {
       data: dbUser,
@@ -121,28 +249,74 @@ export async function POST(request) {
           error:
             "Akun belum tersinkronisasi.",
         },
-        { status: 404 }
+        {
+          status: 404,
+        }
       );
     }
 
-    if (dbUser.is_active === false) {
+    if (
+      dbUser.is_active === false
+    ) {
       return NextResponse.json(
         {
           success: false,
           error:
             "Akun tidak aktif.",
         },
-        { status: 403 }
+        {
+          status: 403,
+        }
       );
     }
 
-    // ==================================================
-    // AMBIL PRODUK REAL DARI SMSCODE
-    // ==================================================
+    /*
+     * ==================================================
+     * VALIDASI PRODUCT LANGSUNG KE SMSCODE
+     * ==================================================
+     *
+     * Penting:
+     * Jangan percaya harga yang dikirim browser.
+     *
+     * Browser hanya mengirim product_id.
+     *
+     * Harga dan availability harus dicek
+     * ulang langsung ke SMSCode.
+     */
+
+    const params =
+      new URLSearchParams();
+
+    params.set(
+      "country_id",
+      requestedCountryId
+    );
+
+    params.set(
+      "platform_id",
+      requestedPlatformId
+    );
+
+    if (requestedOperatorId) {
+      params.set(
+        "operator_id",
+        requestedOperatorId
+      );
+    }
+
+    params.set(
+      "limit",
+      "10000"
+    );
+
+    params.set(
+      "page",
+      "1"
+    );
 
     const productResult =
       await smsRequest(
-        "/catalog/products?limit=10000&page=1"
+        `/catalog/products?${params.toString()}`
       );
 
     if (
@@ -156,40 +330,135 @@ export async function POST(request) {
             productResult.data?.message ||
             "Gagal mengecek produk SMSCode.",
         },
-        { status: 502 }
+        {
+          status: 502,
+        }
       );
     }
 
+    const products =
+      productResult.data.data || [];
+
+    /*
+     * Cari EXACT product yang diklik.
+     */
+
     const product =
-      (
-        productResult.data.data ||
-        []
-      ).find(
+      products.find(
         (item) =>
           String(item.id) ===
           String(productId)
       );
 
+    if (!product) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Produk sudah tidak tersedia pada kombinasi negara/service/operator tersebut.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
     if (
-      !product ||
       product.active === false
     ) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Produk sudah tidak tersedia.",
+            "Produk sudah tidak aktif.",
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
-    // ==================================================
-    // CEK STOCK
-    // ==================================================
+    /*
+     * Pastikan product memang cocok
+     * dengan country + service yang diminta.
+     */
+
+    if (
+      String(product.country_id) !==
+      String(requestedCountryId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Country produk tidak sesuai.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    if (
+      String(product.platform_id) !==
+      String(requestedPlatformId)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Service produk tidak sesuai.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    /*
+     * Kalau user memilih operator tertentu,
+     * pastikan product cocok.
+     */
+
+    if (
+      requestedOperatorId
+    ) {
+      const productOperatorId =
+        getOperatorId(product);
+
+      if (
+        productOperatorId ===
+          null ||
+        String(productOperatorId) !==
+          String(
+            requestedOperatorId
+          )
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Operator produk tidak sesuai.",
+          },
+          {
+            status: 409,
+          }
+        );
+      }
+    }
+
+    /*
+     * ==================================================
+     * STOCK
+     * ==================================================
+     */
 
     const available =
-      Number(product.available ?? 0);
+      Number(
+        product.available ??
+          product.stock ??
+          0
+      );
 
     if (
       Number.isFinite(available) &&
@@ -201,16 +470,20 @@ export async function POST(request) {
           error:
             "Stock nomor sedang habis.",
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
-    // ==================================================
-    // HARGA SUPPLIER
-    // ==================================================
+    /*
+     * ==================================================
+     * HARGA SUPPLIER
+     * ==================================================
+     */
 
     const supplierPrice =
-      Number(product.price);
+      parsePrice(product.price);
 
     if (
       !Number.isFinite(
@@ -222,15 +495,22 @@ export async function POST(request) {
         {
           success: false,
           error:
-            "Harga supplier tidak valid.",
+            "Harga supplier SMSCode tidak valid.",
         },
-        { status: 502 }
+        {
+          status: 502,
+        }
       );
     }
 
-    // ==================================================
-    // AMBIL MARKUP DATABASE
-    // ==================================================
+    /*
+     * ==================================================
+     * MARKUP WEB
+     * ==================================================
+     *
+     * Saat ini:
+     * supplier + Rp1.000
+     */
 
     const {
       data: pricing,
@@ -261,18 +541,27 @@ export async function POST(request) {
     }
 
     const sellingPrice =
-      supplierPrice + markup;
+      Math.round(
+        supplierPrice + markup
+      );
 
-    // ==================================================
-    // IDEMPOTENCY
-    // ==================================================
+    /*
+     * ==================================================
+     * IDEMPOTENCY KEY
+     * ==================================================
+     */
 
     const idempotencyKey =
       crypto.randomUUID();
 
-    // ==================================================
-    // RESERVE + POTONG SALDO ATOMIC
-    // ==================================================
+    /*
+     * ==================================================
+     * RESERVE PURCHASE
+     * ==================================================
+     *
+     * Di sini saldo user dipotong
+     * secara atomic oleh Supabase RPC.
+     */
 
     const {
       data: reservation,
@@ -291,21 +580,19 @@ export async function POST(request) {
             `web:${user.id}`,
 
           p_service_id:
-            product.platform_id != null
-              ? String(
-                  product.platform_id
-                )
-              : null,
+            String(
+              product.platform_id
+            ),
 
           p_country_id:
-            product.country_id != null
-              ? String(
-                  product.country_id
-                )
-              : null,
+            String(
+              product.country_id
+            ),
 
           p_product_id:
-            String(product.id),
+            String(
+              product.id
+            ),
 
           p_supplier_price:
             Math.round(
@@ -313,9 +600,7 @@ export async function POST(request) {
             ),
 
           p_price:
-            Math.round(
-              sellingPrice
-            ),
+            sellingPrice,
 
           p_idempotency_key:
             idempotencyKey,
@@ -323,8 +608,6 @@ export async function POST(request) {
       );
 
     if (reserveError) {
-      // Error dari RPC seperti saldo kurang
-      // diteruskan ke user.
       const message =
         reserveError.message ||
         "";
@@ -342,7 +625,9 @@ export async function POST(request) {
             error:
               "Saldo tidak cukup.",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
@@ -358,9 +643,11 @@ export async function POST(request) {
       );
     }
 
-    // ==================================================
-    // BELI NOMOR REAL SMSCODE
-    // ==================================================
+    /*
+     * ==================================================
+     * CREATE ORDER SMSCODE
+     * ==================================================
+     */
 
     const supplier =
       await smsRequest(
@@ -382,38 +669,75 @@ export async function POST(request) {
         }
       );
 
+    /*
+     * ==================================================
+     * SMSCODE GAGAL
+     * ==================================================
+     */
+
     if (
       !supplier.response.ok ||
       !supplier.data?.success
     ) {
-      // Supplier gagal.
-      // Refund atomic.
-      await supabaseAdmin.rpc(
-        "refund_purchase",
-        {
-          p_order_id:
-            reservationId,
+      const refundResult =
+        await supabaseAdmin.rpc(
+          "refund_purchase",
+          {
+            p_order_id:
+              reservationId,
 
-          p_reason:
-            supplier.data?.message ||
-            "Supplier menolak order.",
-        }
-      );
+            p_reason:
+              supplier.data?.message ||
+              supplier.data?.error
+                ?.message ||
+              "SMSCode menolak order.",
+          }
+        );
+
+      if (
+        refundResult.error
+      ) {
+        console.error(
+          "REFUND RPC ERROR:",
+          refundResult.error
+        );
+
+        /*
+         * Jangan bilang saldo sudah kembali
+         * kalau RPC refund ternyata gagal.
+         */
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "SMSCode menolak order dan refund saldo gagal diproses otomatis. Hubungi admin.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
 
       return NextResponse.json(
         {
           success: false,
           error:
             supplier.data?.message ||
-            "Supplier menolak order. Saldo dikembalikan.",
+            supplier.data?.error
+              ?.message ||
+            "SMSCode menolak order. Saldo dikembalikan.",
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
-    // ==================================================
-    // RESPONSE ORDER SMSCODE
-    // ==================================================
+    /*
+     * ==================================================
+     * AMBIL ORDER SMSCODE
+     * ==================================================
+     */
 
     const supplierOrder =
       supplier.data?.data
@@ -424,16 +748,45 @@ export async function POST(request) {
       !supplierOrder ||
       !supplierOrder.id
     ) {
-      await supabaseAdmin.rpc(
-        "refund_purchase",
-        {
-          p_order_id:
-            reservationId,
+      /*
+       * SMSCode response sukses tapi
+       * tidak ada order ID.
+       *
+       * Refund karena kita belum bisa
+       * mengikat order supplier ke order lokal.
+       */
 
-          p_reason:
-            "Response SMSCode tidak berisi order ID.",
-        }
-      );
+      const refundResult =
+        await supabaseAdmin.rpc(
+          "refund_purchase",
+          {
+            p_order_id:
+              reservationId,
+
+            p_reason:
+              "Response SMSCode tidak berisi order ID.",
+          }
+        );
+
+      if (
+        refundResult.error
+      ) {
+        console.error(
+          "REFUND INVALID RESPONSE ERROR:",
+          refundResult.error
+        );
+
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Response SMSCode tidak valid dan refund otomatis gagal. Hubungi admin.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
 
       return NextResponse.json(
         {
@@ -441,16 +794,20 @@ export async function POST(request) {
           error:
             "Response SMSCode tidak valid. Saldo dikembalikan.",
         },
-        { status: 502 }
+        {
+          status: 502,
+        }
       );
     }
 
     supplierOrderCreated =
       true;
 
-    // ==================================================
-    // UPDATE ORDER LOKAL
-    // ==================================================
+    /*
+     * ==================================================
+     * UPDATE LOCAL ORDER
+     * ==================================================
+     */
 
     const {
       data: updatedOrder,
@@ -483,17 +840,13 @@ export async function POST(request) {
         .select("*")
         .single();
 
+    /*
+     * Supplier SUDAH berhasil.
+     *
+     * Jangan refund kalau database gagal.
+     */
+
     if (updateError) {
-      /*
-       * PENTING:
-       * Supplier SUDAH berhasil membuat nomor.
-       *
-       * JANGAN refund otomatis di sini.
-       * Kalau refund dilakukan, kita bisa punya
-       * nomor supplier + saldo kembali sekaligus.
-       *
-       * Kondisi ini harus direkonsiliasi admin.
-       */
       console.error(
         "ORDER DATABASE UPDATE ERROR:",
         updateError
@@ -504,7 +857,10 @@ export async function POST(request) {
           success: true,
 
           warning:
-            "Nomor berhasil dibeli supplier tetapi sinkronisasi database gagal. Hubungi admin.",
+            "Nomor berhasil dibeli di SMSCode tetapi sinkronisasi database gagal. Order supplier: " +
+            String(
+              supplierOrder.id
+            ),
 
           order: {
             id: reservationId,
@@ -518,6 +874,10 @@ export async function POST(request) {
               supplierOrder.phone_number ||
               null,
 
+            otp_code:
+              supplierOrder.otp_code ||
+              null,
+
             status:
               supplierOrder.status ||
               "ACTIVE",
@@ -525,13 +885,20 @@ export async function POST(request) {
             price:
               sellingPrice,
           },
+
+          balance:
+            Number(
+              reservation.balance_after
+            ),
         }
       );
     }
 
-    // ==================================================
-    // SUKSES
-    // ==================================================
+    /*
+     * ==================================================
+     * SUCCESS
+     * ==================================================
+     */
 
     return NextResponse.json({
       success: true,
@@ -543,6 +910,18 @@ export async function POST(request) {
         Number(
           reservation.balance_after
         ),
+
+      pricing: {
+        supplier_price:
+          Math.round(
+            supplierPrice
+          ),
+
+        markup,
+
+        selling_price:
+          sellingPrice,
+      },
     });
   } catch (error) {
     console.error(
@@ -551,29 +930,40 @@ export async function POST(request) {
     );
 
     /*
-     * Hanya refund jika supplier BELUM membuat
-     * order. Kalau supplier sudah membuat nomor,
-     * jangan sentuh saldo.
+     * Kalau supplier BELUM membuat order,
+     * saldo yang sudah di-reserve harus
+     * dikembalikan.
      */
+
     if (
       reservationId &&
       !supplierOrderCreated
     ) {
       try {
-        await supabaseAdmin.rpc(
-          "refund_purchase",
-          {
-            p_order_id:
-              reservationId,
+        const {
+          error: refundError,
+        } =
+          await supabaseAdmin.rpc(
+            "refund_purchase",
+            {
+              p_order_id:
+                reservationId,
 
-            p_reason:
-              error?.message ||
-              "Purchase error",
-          }
-        );
+              p_reason:
+                error?.message ||
+                "Purchase error",
+            }
+          );
+
+        if (refundError) {
+          console.error(
+            "REFUND ERROR:",
+            refundError
+          );
+        }
       } catch (refundError) {
         console.error(
-          "REFUND ERROR:",
+          "REFUND EXCEPTION:",
           refundError
         );
       }
@@ -582,19 +972,22 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-
         error:
           error?.message ||
           "Gagal membuat order.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
 
-// ==================================================
-// GET ORDER USER
-// ==================================================
+/*
+ * ==================================================
+ * GET ORDERS USER
+ * ==================================================
+ */
 
 export async function GET() {
   try {
@@ -604,7 +997,8 @@ export async function GET() {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (
       authError ||
@@ -615,7 +1009,9 @@ export async function GET() {
           success: false,
           error: "Unauthorized",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
@@ -646,6 +1042,11 @@ export async function GET() {
       orders: data || [],
     });
   } catch (error) {
+    console.error(
+      "GET ORDERS ERROR:",
+      error
+    );
+
     return NextResponse.json(
       {
         success: false,
@@ -653,7 +1054,9 @@ export async function GET() {
           error?.message ||
           "Gagal mengambil pesanan.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
