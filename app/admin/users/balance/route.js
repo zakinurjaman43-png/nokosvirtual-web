@@ -6,19 +6,23 @@ function isAdminEmail(email) {
   const adminEmails =
     process.env.ADMIN_EMAILS
       ?.split(",")
-      .map((value) => value.trim().toLowerCase())
+      .map((value) =>
+        value.trim().toLowerCase()
+      )
       .filter(Boolean) || [];
 
   return (
     !!email &&
-    adminEmails.includes(email.trim().toLowerCase())
+    adminEmails.includes(
+      email.trim().toLowerCase()
+    )
   );
 }
 
 export async function POST(request) {
   try {
     // =========================
-    // CEK LOGIN
+    // CEK LOGIN ADMIN
     // =========================
 
     const supabase =
@@ -27,7 +31,8 @@ export async function POST(request) {
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (
       authError ||
@@ -47,10 +52,16 @@ export async function POST(request) {
     // AMBIL DATA
     // =========================
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
-    const userId = Number(body.user_id);
-    const amount = Number(body.amount);
+    const userId = Number(
+      body.user_id
+    );
+
+    const amount = Number(
+      body.amount
+    );
 
     if (
       !Number.isInteger(userId) ||
@@ -74,34 +85,44 @@ export async function POST(request) {
     const {
       data: targetUser,
       error: findError,
-    } = await supabaseAdmin
-      .from("users")
-      .select("id, balance")
-      .eq("id", userId)
-      .single();
+    } =
+      await supabaseAdmin
+        .from("users")
+        .select(
+          "id, balance"
+        )
+        .eq("id", userId)
+        .single();
 
-    if (findError || !targetUser) {
+    if (
+      findError ||
+      !targetUser
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: "User tidak ditemukan.",
+          error:
+            "User tidak ditemukan.",
         },
         { status: 404 }
       );
     }
 
     // =========================
-    // HITUNG SALDO BARU
+    // HITUNG SALDO
     // =========================
 
-    const currentBalance = Number(
-      targetUser.balance || 0
-    );
+    const currentBalance =
+      Number(
+        targetUser.balance || 0
+      );
 
     const newBalance =
       currentBalance + amount;
 
-    if (newBalance < 0) {
+    if (
+      newBalance < 0
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -119,18 +140,25 @@ export async function POST(request) {
     const {
       data: updatedUser,
       error: updateError,
-    } = await supabaseAdmin
-      .from("users")
-      .update({
-        balance: newBalance,
-      })
-      .eq("id", userId)
-      .select("id, balance")
-      .single();
+    } =
+      await supabaseAdmin
+        .from("users")
+        .update({
+          balance: newBalance,
+        })
+        .eq("id", userId)
+        .select(
+          "id, balance"
+        )
+        .single();
 
     if (updateError) {
       throw updateError;
     }
+
+    // =========================
+    // RESPONSE
+    // =========================
 
     return NextResponse.json({
       success: true,
