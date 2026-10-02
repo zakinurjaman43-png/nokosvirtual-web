@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 function isAdminEmail(email) {
   const adminEmails =

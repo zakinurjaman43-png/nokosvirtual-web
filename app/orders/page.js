@@ -24,31 +24,12 @@ export default function OrdersPage() {
         return;
       }
 
-      /*
-       * USER WEB DISIMPAN DENGAN FORMAT:
-       * web:${user.id}
-       *
-       * BUKAN:
-       * google:${user.id}
-       */
-      const webId = `web:${user.id}`;
-
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("telegram_id", webId)
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (error) {
-        console.error(
-          "LOAD ORDERS ERROR:",
-          error
-        );
-      } else {
-        setOrders(data || []);
+      const response = await fetch("/api/orders", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Gagal memuat pesanan.");
       }
+      setOrders(result.orders || []);
     } catch (error) {
       console.error(
         "ORDERS ERROR:",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 function isAdminEmail(email) {
   const adminEmails =
@@ -56,11 +57,8 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      pricing:
-        data || {
-          id: 1,
-          markup: 1000,
-        },
+      pricing: data || null,
+      configured: Boolean(data),
     });
   } catch (error) {
     console.error(
