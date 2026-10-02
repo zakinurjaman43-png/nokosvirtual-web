@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "../../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
@@ -41,8 +42,7 @@ export async function POST() {
         await supabaseAdmin
           .from("users")
          .insert({
-  id: Date.now(),
-  auth_user_id: user.id,
+            auth_user_id: user.id,
             email: user.email || null,
             provider: "email",
             auth_id: user.id,

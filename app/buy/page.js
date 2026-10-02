@@ -20,6 +20,8 @@ export default function BuyPage() {
   const [buyError, setBuyError] = useState("");
   const [successOrder, setSuccessOrder] =
     useState(null);
+  const [purchaseKey, setPurchaseKey] = useState("");
+  const [checkoutProduct, setCheckoutProduct] = useState(null);
 
   // =========================
   // COUNTRIES
@@ -275,6 +277,8 @@ export default function BuyPage() {
       setBuyError("");
       setSuccessOrder(null);
 
+      const idempotencyKey = purchaseKey || crypto.randomUUID();
+      setPurchaseKey(idempotencyKey);
       const response = await fetch(
         "/api/orders",
         {
@@ -292,6 +296,7 @@ export default function BuyPage() {
             operator_id:
               product.operator_id ??
               null,
+            idempotency_key: idempotencyKey,
           }),
         }
       );
@@ -309,6 +314,8 @@ export default function BuyPage() {
       setSuccessOrder(
         result.order || null
       );
+      setCheckoutProduct(null);
+      setPurchaseKey("");
     } catch (error) {
       console.error(
         "BUY ERROR:",
@@ -524,6 +531,21 @@ export default function BuyPage() {
           </div>
         )}
 
+        {checkoutProduct && (
+          <div role="dialog" aria-modal="true" aria-label="Konfirmasi pembelian" style={modalBackdropStyle}>
+            <section style={modalStyle}>
+              <p style={{ color: "#5eead4", fontWeight: 800, fontSize: 12, letterSpacing: 1 }}>KONFIRMASI PEMBELIAN</p>
+              <h2 style={{ margin: "8px 0 20px" }}>{checkoutProduct.name || `Produk ${checkoutProduct.id}`}</h2>
+              <div style={checkoutRowStyle}><span>Negara</span><strong>{countries.find((item) => String(item.id) === String(country))?.name || country}</strong></div>
+              <div style={checkoutRowStyle}><span>Service</span><strong>{services.find((item) => String(item.id) === String(service))?.name || service}</strong></div>
+              <div style={checkoutRowStyle}><span>Operator</span><strong>{checkoutProduct.operator_name || "Semua operator"}</strong></div>
+              <div style={{ ...checkoutRowStyle, borderTop: "1px solid #334155", paddingTop: 16, marginTop: 8 }}><span>Total</span><strong style={{ color: "#5eead4", fontSize: 22 }}>Rp {Number(checkoutProduct.selling_price).toLocaleString("id-ID")}</strong></div>
+              <p style={{ color: "#94a3b8", fontSize: 13, lineHeight: 1.6 }}>Harga dan saldo akan diverifikasi ulang oleh server sebelum supplier menerima pembelian.</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 22 }}><button type="button" onClick={() => setCheckoutProduct(null)} style={secondaryButtonStyle}>Batal</button><button type="button" onClick={() => buyNumber(checkoutProduct)} disabled={buyingId === checkoutProduct.id} style={primaryButtonStyle}>{buyingId === checkoutProduct.id ? "Memproses..." : "Konfirmasi & Beli"}</button></div>
+            </section>
+          </div>
+        )}
+
         {successOrder && (
           <div
             style={{
@@ -665,32 +687,13 @@ export default function BuyPage() {
                         )}
                       </div>
 
-                      <div
-                        style={{
-                          marginTop: 5,
-                          color: "#64748b",
-                          fontSize: 12,
-                        }}
-                      >
-                        Supplier Rp{" "}
-                        {Number(
-                          product.supplier_price
-                        ).toLocaleString(
-                          "id-ID"
-                        )}
-                      </div>
-
                       <button
                         type="button"
                         disabled={
                           stock <= 0 ||
                           buying
                         }
-                        onClick={() =>
-                          buyNumber(
-                            product
-                          )
-                        }
+                        onClick={() => setCheckoutProduct(product)}
                         style={{
                           width: "100%",
                           marginTop: 15,
@@ -746,3 +749,9 @@ const inputStyle = {
   background: "#070b14",
   color: "#fff",
 };
+
+const modalBackdropStyle = { position: "fixed", inset: 0, zIndex: 50, background: "rgba(3,8,16,.76)", display: "grid", placeItems: "center", padding: 20 };
+const modalStyle = { width: "min(100%, 460px)", background: "#111827", border: "1px solid #334155", borderRadius: 18, padding: 24, boxShadow: "0 30px 80px rgba(0,0,0,.45)" };
+const checkoutRowStyle = { display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 0", color: "#94a3b8", fontSize: 14 };
+const primaryButtonStyle = { flex: 1, border: 0, borderRadius: 10, background: "#5eead4", color: "#06111a", fontWeight: 800, padding: 13, cursor: "pointer" };
+const secondaryButtonStyle = { flex: 1, border: "1px solid #475569", borderRadius: 10, background: "transparent", color: "#fff", fontWeight: 700, padding: 13, cursor: "pointer" };
