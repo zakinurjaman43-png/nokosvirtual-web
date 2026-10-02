@@ -20,6 +20,7 @@ export default function BuyPage() {
   const [buyError, setBuyError] = useState("");
   const [successOrder, setSuccessOrder] =
     useState(null);
+  const [purchaseKey, setPurchaseKey] = useState("");
 
   // =========================
   // COUNTRIES
@@ -275,6 +276,8 @@ export default function BuyPage() {
       setBuyError("");
       setSuccessOrder(null);
 
+      const idempotencyKey = purchaseKey || crypto.randomUUID();
+      setPurchaseKey(idempotencyKey);
       const response = await fetch(
         "/api/orders",
         {
@@ -292,6 +295,7 @@ export default function BuyPage() {
             operator_id:
               product.operator_id ??
               null,
+            idempotency_key: idempotencyKey,
           }),
         }
       );
@@ -309,6 +313,7 @@ export default function BuyPage() {
       setSuccessOrder(
         result.order || null
       );
+      setPurchaseKey("");
     } catch (error) {
       console.error(
         "BUY ERROR:",
@@ -660,21 +665,6 @@ export default function BuyPage() {
                         Rp{" "}
                         {Number(
                           product.selling_price
-                        ).toLocaleString(
-                          "id-ID"
-                        )}
-                      </div>
-
-                      <div
-                        style={{
-                          marginTop: 5,
-                          color: "#64748b",
-                          fontSize: 12,
-                        }}
-                      >
-                        Supplier Rp{" "}
-                        {Number(
-                          product.supplier_price
                         ).toLocaleString(
                           "id-ID"
                         )}

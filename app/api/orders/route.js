@@ -3,10 +3,14 @@ import crypto from "crypto";
 
 import { createSupabaseServerClient } from "../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 const SMSCODE_BASE_URL = "https://api.smscode.gg/v1";
 
 async function smsRequest(path, options = {}) {
+  if (!process.env.SMSCODE_TOKEN) {
+    throw new Error("Integrasi SMSCode belum dikonfigurasi.");
+  }
   const response = await fetch(
     `${SMSCODE_BASE_URL}${path}`,
     {
@@ -428,10 +432,17 @@ export async function POST(request) {
       throw pricingError;
     }
 
-    const markup =
-      Number(
-        pricing?.markup ?? 1000
+    if (!pricing) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Markup belum dikonfigurasi oleh administrator.",
+        },
+        { status: 503 }
       );
+    }
+
+    const markup = Number(pricing.markup);
 
     if (
       !Number.isInteger(markup) ||
@@ -451,8 +462,12 @@ export async function POST(request) {
     // IDEMPOTENCY
     // ================================
 
+    const suppliedIdempotencyKey = body.idempotency_key;
     const idempotencyKey =
-      crypto.randomUUID();
+      typeof suppliedIdempotencyKey === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(suppliedIdempotencyKey)
+        ? suppliedIdempotencyKey
+        : crypto.randomUUID();
 
     // ================================
     // POTONG SALDO

@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 const SMSCODE_BASE_URL = "https://api.smscode.gg/v1";
 
 async function smsGet(path) {
+  if (!process.env.SMSCODE_TOKEN) {
+    throw new Error("Integrasi katalog belum dikonfigurasi.");
+  }
   const response = await fetch(
     `${SMSCODE_BASE_URL}${path}`,
     {
@@ -67,7 +71,11 @@ async function getMarkup() {
 
   if (error) throw error;
 
-  const markup = Number(data?.markup ?? 1000);
+  if (!data) {
+    throw new Error("Markup belum dikonfigurasi oleh administrator.");
+  }
+
+  const markup = Number(data.markup);
 
   if (!Number.isInteger(markup) || markup < 0) {
     throw new Error("Markup pricing tidak valid.");

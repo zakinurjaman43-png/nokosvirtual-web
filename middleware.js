@@ -44,25 +44,20 @@ export async function middleware(request) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/admin")) {
+    if (pathname === "/admin/login") {
+      if (user && isAdminEmail(user.email)) {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+      return response;
+    }
+
     if (!user) {
       return NextResponse.redirect(
-        new URL("/login", request.url)
+        new URL("/admin/login", request.url)
       );
     }
 
-    const adminEmails =
-      process.env.ADMIN_EMAILS
-        ?.split(",")
-        .map((email) => email.trim().toLowerCase())
-        .filter(Boolean) || [];
-
-    const userEmail =
-      user.email?.trim().toLowerCase();
-
-    if (
-      !userEmail ||
-      !adminEmails.includes(userEmail)
-    ) {
+    if (!isAdminEmail(user.email)) {
       return NextResponse.redirect(
         new URL("/dashboard", request.url)
       );
@@ -70,6 +65,14 @@ export async function middleware(request) {
   }
 
   return response;
+}
+
+function isAdminEmail(email) {
+  const adminEmails = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  return Boolean(email && adminEmails.includes(email.trim().toLowerCase()));
 }
 
 export const config = {
