@@ -11,7 +11,7 @@ function formatRupiah(value) {
 
 export default function PricingPage() {
   const [markup, setMarkup] =
-    useState("1000");
+    useState("");
 
   const [loading, setLoading] =
     useState(true);
@@ -49,7 +49,7 @@ export default function PricingPage() {
         setMarkup(
           String(
             data.pricing?.markup ??
-              1000
+              ""
           )
         );
       } catch (error) {
@@ -233,6 +233,7 @@ export default function PricingPage() {
               min="0"
               step="100"
               value={markup}
+              placeholder="Masukkan markup"
               onChange={(e) =>
                 setMarkup(
                   e.target.value
