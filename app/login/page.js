@@ -62,133 +62,22 @@ export default function Login() {
   }
 
   return (
-    <main>
-      <div className="container">
-        <div className="formbox">
-
-          <div className="brand">
-            NOKOS <span>STORE</span>
-          </div>
-
-          <h2>
-            {mode === "login"
-              ? "Masuk ke akun"
-              : "Buat akun"}
-          </h2>
-
-          <p style={{ color: "#9eabbf" }}>
-            {mode === "login"
-              ? "Masuk untuk membeli nomor virtual dan mengelola saldo."
-              : "Buat akun untuk mulai menggunakan NOKOS STORE."}
-          </p>
-
-          <form onSubmit={handleSubmit}>
-
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-              style={{
-                width: "100%",
-                marginTop: 16,
-                padding: "12px 14px",
-                boxSizing: "border-box",
-              }}
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
-              autoComplete={
-                mode === "login"
-                  ? "current-password"
-                  : "new-password"
-              }
-              minLength={6}
-              required
-              style={{
-                width: "100%",
-                marginTop: 10,
-                padding: "12px 14px",
-                boxSizing: "border-box",
-              }}
-            />
-
-            <button
-              type="submit"
-              className="btn primary"
-              disabled={loading}
-              style={{
-                width: "100%",
-                marginTop: 12,
-                cursor: loading
-                  ? "wait"
-                  : "pointer",
-              }}
-            >
-              {loading
-                ? "Memproses..."
-                : mode === "login"
-                ? "Masuk"
-                : "Daftar"}
-            </button>
-
-          </form>
-
-          {message && (
-            <p
-              style={{
-                color: "#72efb1",
-                marginTop: 14,
-                lineHeight: 1.5,
-              }}
-            >
-              {message}
-            </p>
-          )}
-
-          <button
-            type="button"
-            className="btn dark"
-            onClick={() => {
-              setMode(
-                mode === "login"
-                  ? "signup"
-                  : "login"
-              );
-              setMessage("");
-            }}
-            style={{
-              width: "100%",
-              marginTop: 10,
-              cursor: "pointer",
-            }}
-          >
-            {mode === "login"
-              ? "Belum punya akun? Daftar"
-              : "Sudah punya akun? Masuk"}
-          </button>
-
-          <Link
-            href="/"
-            style={{
-              display: "block",
-              marginTop: 22,
-              color: "#72efb1",
-            }}
-          >
-            ← Kembali
-          </Link>
-
-        </div>
-      </div>
+    <main className="auth-page">
+      <div className="auth-backdrop" />
+      <section className="auth-card">
+        <Link href="/" className="wordmark"><span className="wordmark-mark">N</span>NOKOS<span>VIRTUAL</span></Link>
+        <p className="eyebrow">{mode === "login" ? "AKSES AKUN" : "BUAT AKUN"}</p>
+        <h1>{mode === "login" ? "Masuk dan lanjutkan transaksi." : "Mulai dengan akun NOKOS."}</h1>
+        <p className="auth-copy">{mode === "login" ? "Akses saldo, nomor virtual, dan riwayat OTP Anda." : "Daftar untuk membeli nomor virtual melalui katalog live."}</p>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <label>Email<input type="email" placeholder="nama@email.com" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
+          <label>Password<input type="password" placeholder="Minimal 6 karakter" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={6} required /></label>
+          <button type="submit" className="button button-primary" disabled={loading}>{loading ? "Memproses..." : mode === "login" ? "Masuk ke dashboard →" : "Buat akun →"}</button>
+        </form>
+        {message && <p className="auth-message" role="status">{message}</p>}
+        <button type="button" className="auth-switch" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setMessage(""); }}>{mode === "login" ? "Belum punya akun? Daftar sekarang" : "Sudah memiliki akun? Masuk"}</button>
+        <Link href="/" className="auth-back">← Kembali ke beranda</Link>
+      </section>
     </main>
   );
 }

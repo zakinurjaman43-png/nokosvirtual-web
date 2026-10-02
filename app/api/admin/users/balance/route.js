@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { createSupabaseServerClient } from "../../../../../lib/supabaseServer";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
+export const dynamic = "force-dynamic";
 
 function isAdminEmail(email) {
   const adminEmails =
@@ -74,177 +76,44 @@ export async function POST(request) {
       );
     }
 
-    // =========================
-    // CARI USER
-    // =========================
+    // Balance and its immutable ledger record must be changed in the same
+    // database transaction.  A read/update/rollback sequence races under
+    // concurrent adjustments, so this endpoint only invokes the RPC.
+    const referenceId = crypto.randomUUID();
+    const { data: adjustment, error: adjustmentError } = await supabaseAdmin.rpc(
+      "adjust_admin_balance",
+      {
+        p_user_id: userId,
+        p_amount: amount,
+        p_admin_auth_user_id: user.id,
+        p_reference_id: referenceId,
+      }
+    );
 
-    const {
-      data: targetUser,
-      error: findError,
-    } =
-      await supabaseAdmin
-        .from("users")
-        .select(
-          "id, auth_user_id, email, balance"
-        )
-        .eq("id", userId)
-        .single();
-
-    if (
-      findError ||
-      !targetUser
-    ) {
+    if (adjustmentError) {
+      const status = adjustmentError.message?.toLowerCase().includes("saldo tidak cukup") ? 400 : 500;
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            "User tidak ditemukan.",
-        },
-        { status: 404 }
+        { success: false, error: adjustmentError.message || "Gagal mengubah saldo." },
+        { status }
       );
     }
 
-    // =========================
-    // HITUNG SALDO
-    // =========================
+    const { data: updatedUser, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("id, auth_user_id, email, balance")
+      .eq("id", userId)
+      .single();
 
-    const currentBalance =
-      Number(
-        targetUser.balance || 0
-      );
-
-    const newBalance =
-      currentBalance + amount;
-
-    if (newBalance < 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Saldo tidak boleh menjadi negatif.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // =========================
-    // UPDATE SALDO
-    // =========================
-
-    const {
-      data: updatedUser,
-      error: updateError,
-    } =
-      await supabaseAdmin
-        .from("users")
-        .update({
-          balance: newBalance,
-        })
-        .eq("id", userId)
-        .select(
-          "id, auth_user_id, email, balance"
-        )
-        .single();
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    // =========================
-    // CATAT TRANSAKSI
-    // =========================
-
-    const transactionType =
-      amount > 0
-        ? "admin_add"
-        : "admin_subtract";
-
-    const description =
-      amount > 0
-        ? "Saldo ditambahkan oleh admin"
-        : "Saldo dikurangi oleh admin";
-
-    const {
-      error: transactionError,
-    } =
-      await supabaseAdmin
-        .from(
-          "balance_transactions"
-        )
-        .insert({
-          user_id: targetUser.id,
-
-          auth_user_id:
-            targetUser.auth_user_id ||
-            null,
-
-          type:
-            transactionType,
-
-          amount: amount,
-
-          balance_before:
-            currentBalance,
-
-          balance_after:
-            newBalance,
-
-          reference_type:
-            "admin",
-
-          reference_id:
-            user.id,
-
-          description:
-            description,
-        });
-
-    // =========================
-    // JIKA TRANSAKSI GAGAL
-    // =========================
-
-    if (transactionError) {
-      console.error(
-        "BALANCE TRANSACTION ERROR:",
-        transactionError
-      );
-
-      // Rollback saldo
-      await supabaseAdmin
-        .from("users")
-        .update({
-          balance:
-            currentBalance,
-        })
-        .eq(
-          "id",
-          userId
-        );
-
-      throw transactionError;
-    }
-
-    // =========================
-    // RESPONSE
-    // =========================
+    if (userError) throw userError;
 
     return NextResponse.json({
       success: true,
-
       user: updatedUser,
-
       transaction: {
-        type:
-          transactionType,
-
-        amount:
-          amount,
-
-        balance_before:
-          currentBalance,
-
-        balance_after:
-          newBalance,
+        amount,
+        balance_before: Number(adjustment?.balance_before),
+        balance_after: Number(adjustment?.balance_after),
+        reference_id: referenceId,
       },
     });
   } catch (error) {
