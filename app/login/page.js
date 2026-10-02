@@ -52,6 +52,24 @@ export default function Login() {
 
         if (error) throw error;
 
+        // Pastikan setiap login membuat/memperbarui record public.users
+        // sebelum user diarahkan ke dashboard.
+        const syncResponse = await fetch("/api/user/sync", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const syncData = await syncResponse.json().catch(() => null);
+
+        if (!syncResponse.ok || !syncData?.success) {
+          await supabase.auth.signOut();
+          throw new Error(
+            syncData?.error || "Login berhasil, tetapi sinkronisasi akun gagal."
+          );
+        }
+
         window.location.href = "/dashboard";
       }
     } catch (error) {
